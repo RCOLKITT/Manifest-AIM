@@ -1,0 +1,5 @@
+aim: "1.0"
+metadata:
+  name: "Bad Name With Spaces"
+  version: 1.0.0
+  description: "Name must be kebab-case"

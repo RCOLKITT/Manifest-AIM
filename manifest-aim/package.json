@@ -1,0 +1,62 @@
+{
+  "name": "manifest-aim",
+  "version": "0.1.0",
+  "description": "The Agent Instruction Manifest platform — Define it. Manifest it.",
+  "keywords": [
+    "aim",
+    "agent",
+    "ai",
+    "manifest",
+    "governance",
+    "llm",
+    "mcp",
+    "enforcement",
+    "compliance"
+  ],
+  "author": "Vaspera Capital",
+  "type": "module",
+  "license": "SEE LICENSE IN LICENSE",
+  "homepage": "https://manifestaim.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/manifest-aim/manifest"
+  },
+  "bin": {
+    "manifest": "./dist/cli/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "schemas",
+    "manifests/reference"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli/index.js",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src/",
+    "validate:schema": "node dist/cli/index.js validate",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "js-yaml": "^4.1.0",
+    "ora": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.13.0",
+    "eslint": "^9.21.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.7"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

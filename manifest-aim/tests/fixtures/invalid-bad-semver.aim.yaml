@@ -1,0 +1,5 @@
+aim: "1.0"
+metadata:
+  name: bad-semver
+  version: "not.a.version"
+  description: "Invalid semver string"

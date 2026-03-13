@@ -1,0 +1,1155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://manifestaim.dev/schemas/aim-v1.0.json",
+  "title": "AIM — Agent Instruction Manifest",
+  "description": "The AIM protocol specification. Defines how AI agents receive instructions, knowledge, governance, and execution configuration through a progressively-loaded, composable manifest format.",
+  "type": "object",
+  "required": ["aim", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "aim": {
+      "type": "string",
+      "description": "AIM protocol version",
+      "enum": ["1.0"]
+    },
+
+    "metadata": {
+      "type": "object",
+      "description": "Manifest identity and discovery information",
+      "required": ["name", "version", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Package name (kebab-case, lowercase)",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version (semver)",
+          "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*)?(\\+[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*)?$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what this manifest provides",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "authors": {
+          "type": "array",
+          "description": "Contact/ownership identifiers (names or emails)",
+          "items": { "type": "string" }
+        },
+        "tags": {
+          "type": "array",
+          "description": "Discovery and categorization tags",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          }
+        },
+        "license": {
+          "type": "string",
+          "description": "SPDX license identifier"
+        },
+        "repository": {
+          "type": "string",
+          "description": "Source repository URL",
+          "format": "uri"
+        },
+        "homepage": {
+          "type": "string",
+          "description": "Documentation or landing page URL",
+          "format": "uri"
+        },
+        "checksum": {
+          "type": "string",
+          "description": "SHA-256 integrity hash"
+        }
+      }
+    },
+
+    "context": {
+      "type": "object",
+      "description": "Operational context — who the agent is, who it serves, and under what conditions",
+      "additionalProperties": false,
+      "properties": {
+        "persona": {
+          "type": "string",
+          "description": "Agent's role identity (e.g., 'senior TypeScript engineer', 'content strategist')"
+        },
+        "audience": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "primary": { "type": "string" },
+                "secondary": { "type": "string" },
+                "technical_level": {
+                  "type": "string",
+                  "enum": ["beginner", "intermediate", "advanced", "expert"]
+                }
+              }
+            }
+          ],
+          "description": "Who the agent's output serves"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Business domain (e.g., 'software-engineering', 'healthcare', 'finance', 'marketing')"
+        },
+        "environment": {
+          "type": "string",
+          "description": "Runtime environment — can be auto-detected or set explicitly",
+          "examples": ["development", "staging", "production", "ci"]
+        },
+        "organization": {
+          "type": "string",
+          "description": "Organization identifier"
+        },
+        "compliance": {
+          "type": "array",
+          "description": "Regulatory frameworks this manifest must satisfy",
+          "items": {
+            "type": "string",
+            "examples": ["hipaa", "hitech", "soc2", "pci-dss", "gdpr", "sox", "finra", "ferpa"]
+          }
+        },
+        "data_classification": {
+          "type": "array",
+          "description": "Data sensitivity levels recognized by this manifest",
+          "items": { "type": "string" },
+          "examples": [["public", "internal", "confidential", "restricted"]]
+        },
+        "locale": {
+          "type": "string",
+          "description": "Language/region (BCP-47 format)",
+          "examples": ["en-US", "en-GB", "es-ES"]
+        },
+        "variables": {
+          "type": "object",
+          "description": "Custom context variables available in conditional expressions",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "capabilities": {
+      "type": "array",
+      "description": "What the agent can do — defined as four-tier progressive disclosure units",
+      "items": {
+        "$ref": "#/definitions/Capability"
+      }
+    },
+
+    "knowledge": {
+      "type": "array",
+      "description": "Domain knowledge units — loaded contextually based on triggers",
+      "items": {
+        "$ref": "#/definitions/KnowledgeUnit"
+      }
+    },
+
+    "governance": {
+      "type": "object",
+      "description": "Rules, transforms, guardrails, quality gates, and audit configuration",
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "type": "array",
+          "description": "Governance rules with enforcement configuration",
+          "items": {
+            "$ref": "#/definitions/GovernanceRule"
+          }
+        },
+        "transforms": {
+          "type": "array",
+          "description": "Automatic output transformations",
+          "items": {
+            "$ref": "#/definitions/Transform"
+          }
+        },
+        "guardrails": {
+          "type": "object",
+          "description": "Input and output filtering",
+          "additionalProperties": false,
+          "properties": {
+            "input": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Guardrail" }
+            },
+            "output": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/Guardrail" }
+            }
+          }
+        },
+        "quality_gates": {
+          "$ref": "#/definitions/QualityGates"
+        },
+        "audit": {
+          "$ref": "#/definitions/AuditConfig"
+        },
+        "retry_policy": {
+          "type": "object",
+          "description": "Global retry/remediation budget",
+          "additionalProperties": false,
+          "properties": {
+            "max_global_retries": {
+              "type": "integer",
+              "description": "Max total retries across all rules per task",
+              "minimum": 0,
+              "default": 3
+            },
+            "retry_budget_tokens": {
+              "type": "integer",
+              "description": "Max additional tokens spent on retries",
+              "minimum": 0
+            },
+            "escalate_after": {
+              "type": "integer",
+              "description": "Escalate to human after N failed retries",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+
+    "dependencies": {
+      "type": "array",
+      "description": "Other AIM manifests this manifest depends on",
+      "items": {
+        "$ref": "#/definitions/Dependency"
+      }
+    },
+
+    "inherits": {
+      "type": "array",
+      "description": "Base manifests to extend (ordered — later entries take precedence in last_wins strategy)",
+      "items": { "type": "string" }
+    },
+
+    "composition": {
+      "type": "object",
+      "description": "How conflicts between inherited/dependent manifests are resolved",
+      "additionalProperties": false,
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "description": "Conflict resolution strategy",
+          "enum": ["most_restrictive", "last_wins", "priority_weighted", "strict_fail"],
+          "default": "most_restrictive"
+        }
+      }
+    },
+
+    "overrides": {
+      "type": "object",
+      "description": "Explicit field overrides for values inherited from parent manifests",
+      "additionalProperties": true
+    },
+
+    "lifecycle": {
+      "$ref": "#/definitions/Lifecycle"
+    },
+
+    "runtime": {
+      "type": "object",
+      "description": "Performance and runtime configuration hints",
+      "additionalProperties": false,
+      "properties": {
+        "token_budget": {
+          "type": "integer",
+          "description": "Max tokens this manifest should consume across all tiers",
+          "minimum": 0
+        },
+        "tier1_cache_ttl": {
+          "type": "string",
+          "description": "How long to cache Tier 1 schemas (ISO 8601 duration)",
+          "examples": ["PT5M", "PT1H"]
+        },
+        "parallel_enforcement": {
+          "type": "boolean",
+          "description": "Run enforcement checks in parallel where possible",
+          "default": true
+        },
+        "enforcement_timeout": {
+          "type": "string",
+          "description": "Max time for all enforcement checks (ISO 8601 duration)",
+          "default": "PT30S"
+        },
+        "judge_model": {
+          "type": "string",
+          "description": "Override default model for semantic enforcement"
+        },
+        "judge_temperature": {
+          "type": "number",
+          "description": "Temperature for semantic evaluation",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.1
+        }
+      }
+    }
+  },
+
+  "definitions": {
+
+    "Capability": {
+      "type": "object",
+      "description": "A single agent capability with four-tier progressive disclosure",
+      "required": ["name", "index"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique capability identifier (kebab-case)",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+        },
+        "tags": {
+          "type": "array",
+          "description": "Discovery tags used in Tier 0 matching",
+          "items": { "type": "string" }
+        },
+        "index": {
+          "type": "string",
+          "description": "Tier 0: One-line description (~5 tokens). This is ALL the agent sees at init.",
+          "maxLength": 100
+        },
+        "deprecated": {
+          "type": "boolean",
+          "description": "If true, warn on usage",
+          "default": false
+        },
+
+        "schema": {
+          "type": "object",
+          "description": "Tier 1: Typed interface — loaded on relevance match",
+          "additionalProperties": false,
+          "properties": {
+            "inputs": {
+              "type": "object",
+              "description": "Named, typed input parameters",
+              "additionalProperties": {
+                "oneOf": [
+                  { "type": "string" },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": { "type": "string" },
+                      "description": { "type": "string" },
+                      "required": { "type": "boolean" },
+                      "default": {},
+                      "enum": { "type": "array" }
+                    },
+                    "required": ["type"]
+                  }
+                ]
+              }
+            },
+            "outputs": {
+              "type": "object",
+              "description": "Return type definition",
+              "additionalProperties": true
+            },
+            "preconditions": {
+              "type": "array",
+              "description": "What must be true before invocation",
+              "items": { "type": "string" }
+            },
+            "side_effects": {
+              "type": "array",
+              "description": "What this capability changes in the world",
+              "items": { "type": "string" }
+            },
+            "idempotent": {
+              "type": "boolean",
+              "description": "Safe to retry without side effects?"
+            },
+            "timeout": {
+              "type": "string",
+              "description": "Max execution time (ISO 8601 duration)"
+            },
+            "rate_limit": {
+              "type": "string",
+              "description": "Max invocations per period (e.g., '10/minute')"
+            }
+          }
+        },
+
+        "instructions": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "Path to instruction file relative to manifest"
+                }
+              },
+              "required": ["file"]
+            }
+          ],
+          "description": "Tier 2: Full how-to, best practices, edge cases — loaded on commitment to use"
+        },
+        "examples": {
+          "type": "array",
+          "description": "Tier 2: Usage examples",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "input": { "type": "object" },
+              "expected_output": { "type": "object" }
+            }
+          }
+        },
+        "anti_patterns": {
+          "type": "array",
+          "description": "Tier 2: What NOT to do",
+          "items": {
+            "type": "object",
+            "required": ["description"],
+            "properties": {
+              "description": { "type": "string" },
+              "example": { "type": "string" }
+            }
+          }
+        },
+
+        "dispatch": {
+          "$ref": "#/definitions/Dispatch"
+        },
+
+        "constraints": {
+          "type": "array",
+          "description": "Capability-scoped governance constraints",
+          "items": {
+            "type": "object",
+            "properties": {
+              "when": {
+                "type": "string",
+                "description": "Activation condition (CEL expression)"
+              },
+              "unless": {
+                "type": "string",
+                "description": "Exception condition (CEL expression)"
+              },
+              "rule": {
+                "type": "string",
+                "description": "Human-readable constraint"
+              },
+              "enforcement": {
+                "type": "string",
+                "enum": ["static", "semantic", "injected"]
+              }
+            },
+            "required": ["rule"]
+          }
+        },
+
+        "requires": {
+          "type": "array",
+          "description": "Dependencies on other capabilities by name",
+          "items": { "type": "string" }
+        },
+        "retry": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "backoff": {
+              "type": "string",
+              "enum": ["linear", "exponential"]
+            },
+            "delay": {
+              "type": "string",
+              "description": "Base delay between retries (ISO 8601 duration)"
+            }
+          }
+        }
+      }
+    },
+
+    "Dispatch": {
+      "type": "object",
+      "description": "Tier 3: Execution target — NEVER enters the agent's context window",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Transport type for execution",
+          "enum": ["mcp", "cli", "rest", "code", "agent"]
+        },
+        "config": {
+          "type": "object",
+          "description": "Transport-specific configuration",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "KnowledgeUnit": {
+      "type": "object",
+      "description": "A domain knowledge unit loaded contextually",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Knowledge unit identifier"
+        },
+        "trigger": {
+          "type": "string",
+          "description": "Natural language description of when to load this knowledge"
+        },
+        "trigger_capabilities": {
+          "type": "array",
+          "description": "Load this knowledge when any of these capabilities activate",
+          "items": { "type": "string" }
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Loading priority (higher = loaded first)",
+          "minimum": 0,
+          "default": 0
+        },
+        "scope": {
+          "type": "array",
+          "description": "Which capabilities this knowledge applies to",
+          "items": { "type": "string" }
+        },
+        "content": {
+          "oneOf": [
+            { "type": "string" },
+            {
+              "type": "object",
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "description": "Path to knowledge file relative to manifest"
+                }
+              },
+              "required": ["file"]
+            }
+          ],
+          "description": "The actual knowledge content"
+        },
+        "format": {
+          "type": "string",
+          "description": "Content format",
+          "enum": ["markdown", "text", "yaml"],
+          "default": "markdown"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "description": "Budget limit for this knowledge unit",
+          "minimum": 1
+        },
+        "ttl": {
+          "type": "string",
+          "description": "Cache duration before refresh (ISO 8601 duration)"
+        }
+      }
+    },
+
+    "DetectConfig": {
+      "type": "object",
+      "description": "Detection configuration — how a rule identifies violations",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["pattern", "tool", "semantic", "composite"]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "pattern" } }
+          },
+          "then": {
+            "properties": {
+              "type": { "const": "pattern" },
+              "match": {
+                "type": "string",
+                "description": "Regex pattern to match against"
+              },
+              "scope": {
+                "type": "string",
+                "enum": ["output", "input", "both"],
+                "default": "output"
+              },
+              "file_types": {
+                "type": "array",
+                "description": "File extensions to apply pattern to",
+                "items": { "type": "string" }
+              }
+            },
+            "required": ["type", "match"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "tool" } }
+          },
+          "then": {
+            "properties": {
+              "type": { "const": "tool" },
+              "command": {
+                "type": "string",
+                "description": "Tool command to execute (supports {{file}} interpolation)"
+              },
+              "match_condition": {
+                "type": "string",
+                "description": "JSONPath expression on tool output to determine match"
+              },
+              "exit_code_fail": {
+                "type": "string",
+                "description": "Exit code interpretation",
+                "enum": ["non-zero", "zero"],
+                "default": "non-zero"
+              },
+              "timeout": {
+                "type": "string",
+                "description": "Tool execution timeout (ISO 8601 duration)",
+                "default": "PT30S"
+              },
+              "install": {
+                "type": "string",
+                "description": "Command to auto-install the tool if missing"
+              }
+            },
+            "required": ["type", "command"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "semantic" } }
+          },
+          "then": {
+            "properties": {
+              "type": { "const": "semantic" },
+              "criteria": {
+                "type": "string",
+                "description": "Natural language criteria for LLM-as-judge evaluation"
+              },
+              "model": {
+                "type": "string",
+                "description": "Judge model tier",
+                "enum": ["fast", "standard", "thorough"],
+                "default": "fast"
+              },
+              "threshold": {
+                "type": "number",
+                "description": "Confidence threshold for pass (0.0-1.0)",
+                "minimum": 0,
+                "maximum": 1,
+                "default": 0.8
+              },
+              "examples": {
+                "type": "array",
+                "description": "Few-shot examples for the judge",
+                "items": {
+                  "type": "object",
+                  "required": ["input", "verdict"],
+                  "properties": {
+                    "input": { "type": "string" },
+                    "verdict": {
+                      "type": "string",
+                      "enum": ["pass", "fail"]
+                    },
+                    "reason": { "type": "string" }
+                  }
+                }
+              }
+            },
+            "required": ["type", "criteria"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "composite" } }
+          },
+          "then": {
+            "properties": {
+              "type": { "const": "composite" },
+              "strategy": {
+                "type": "string",
+                "enum": ["all_must_pass", "any_must_pass", "weighted"],
+                "default": "all_must_pass"
+              },
+              "checks": {
+                "type": "array",
+                "description": "Array of detection checks to compose",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["pattern", "tool", "semantic"]
+                    },
+                    "weight": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "minItems": 2
+              },
+              "threshold": {
+                "type": "number",
+                "description": "Weighted score threshold for composite",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": ["type", "checks"]
+          }
+        }
+      ]
+    },
+
+    "GovernanceRule": {
+      "type": "object",
+      "description": "A governance rule with detection, enforcement, and action configuration",
+      "required": ["name", "action", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Rule identifier (kebab-case)",
+          "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable explanation"
+        },
+        "category": {
+          "type": "string",
+          "description": "Rule category",
+          "enum": ["security", "quality", "compliance", "style", "safety", "custom"]
+        },
+        "when": {
+          "type": "string",
+          "description": "Activation condition (CEL expression)"
+        },
+        "unless": {
+          "type": "string",
+          "description": "Exception condition (CEL expression)"
+        },
+        "enforcement": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["static", "semantic", "injected"]
+            },
+            {
+              "type": "object",
+              "description": "Layered enforcement with primary and fallback",
+              "properties": {
+                "primary": {
+                  "type": "string",
+                  "enum": ["static", "semantic", "injected"]
+                },
+                "fallback": {
+                  "type": "string",
+                  "enum": ["static", "semantic", "injected"]
+                }
+              },
+              "required": ["primary"]
+            }
+          ]
+        },
+        "detect": {
+          "$ref": "#/definitions/DetectConfig"
+        },
+        "instruction": {
+          "type": "string",
+          "description": "For injected enforcement — the instruction injected into agent context"
+        },
+        "action": {
+          "type": "string",
+          "description": "What happens when the rule triggers",
+          "enum": ["block", "warn", "require_approval", "escalate", "transform", "log", "retry"]
+        },
+        "severity": {
+          "type": "string",
+          "description": "Rule severity level",
+          "enum": ["info", "warning", "error", "critical"]
+        },
+        "message": {
+          "type": "string",
+          "description": "Explanation shown to agent and/or user when rule triggers"
+        },
+        "fix_hint": {
+          "type": "string",
+          "description": "Actionable remediation guidance for the agent"
+        },
+        "reference": {
+          "type": "string",
+          "description": "URL to policy documentation",
+          "format": "uri"
+        },
+        "approvers": {
+          "type": "array",
+          "description": "Required approvers for require_approval action",
+          "items": { "type": "string" }
+        },
+        "escalation_target": {
+          "type": "string",
+          "description": "Notification target for escalate action"
+        },
+        "retry": {
+          "type": "object",
+          "description": "Retry configuration for retry action",
+          "properties": {
+            "instruction": {
+              "type": "string",
+              "description": "Specific fix instructions sent back to the agent"
+            },
+            "max_attempts": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 2
+            }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "description": "Categorization tags",
+          "items": { "type": "string" }
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Rule priority for priority_weighted composition (0-100)",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+
+    "Transform": {
+      "type": "object",
+      "description": "Automatic output transformation",
+      "required": ["name", "transform"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Transform identifier"
+        },
+        "when": {
+          "type": "string",
+          "description": "Activation condition (CEL expression)"
+        },
+        "detect": {
+          "$ref": "#/definitions/DetectConfig"
+        },
+        "transform": {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["remove_match", "replace", "inject", "rewrite"]
+            },
+            "position": {
+              "type": "string",
+              "description": "For inject type — where to insert",
+              "enum": ["top", "bottom", "before_match", "after_match"]
+            },
+            "template": {
+              "type": "string",
+              "description": "Template for inject/replace (supports {{variable}} interpolation)"
+            },
+            "replacement": {
+              "type": "string",
+              "description": "Replacement text for replace type"
+            },
+            "scope": {
+              "type": "string",
+              "description": "What to transform",
+              "enum": ["output", "log_output", "both"],
+              "default": "output"
+            }
+          }
+        }
+      }
+    },
+
+    "Guardrail": {
+      "type": "object",
+      "description": "Input or output filtering guardrail",
+      "required": ["name", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "detect": {
+          "$ref": "#/definitions/DetectConfig"
+        },
+        "action": {
+          "type": "string",
+          "enum": ["block", "transform", "log"]
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+
+    "QualityGates": {
+      "type": "object",
+      "description": "Output quality requirements by domain",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "test_coverage_minimum": {
+              "type": "number",
+              "description": "Minimum test coverage percentage",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "require_types": {
+              "oneOf": [
+                { "type": "boolean" },
+                { "type": "string", "enum": ["strict"] }
+              ],
+              "description": "Type safety requirement"
+            },
+            "max_complexity": {
+              "type": "integer",
+              "description": "Maximum cyclomatic complexity per function",
+              "minimum": 1
+            },
+            "max_file_length": {
+              "type": "integer",
+              "description": "Maximum lines per file",
+              "minimum": 1
+            },
+            "require_error_handling": {
+              "type": "boolean",
+              "description": "All code paths must handle errors"
+            },
+            "require_logging": {
+              "oneOf": [
+                { "type": "boolean" },
+                { "type": "string", "enum": ["structured"] }
+              ],
+              "description": "Logging requirement"
+            },
+            "require_input_validation": {
+              "type": "boolean",
+              "description": "API handlers must validate input"
+            },
+            "forbidden_patterns": {
+              "type": "array",
+              "description": "Regex patterns that must NOT appear in output",
+              "items": { "type": "string" }
+            },
+            "required_patterns": {
+              "type": "array",
+              "description": "Regex patterns that MUST appear in output",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "content": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_reading_level": {
+              "type": "number",
+              "description": "Maximum Flesch-Kincaid grade level"
+            },
+            "require_citations": {
+              "type": "boolean"
+            },
+            "max_length": {
+              "type": "integer",
+              "description": "Maximum word count",
+              "minimum": 1
+            },
+            "min_length": {
+              "type": "integer",
+              "description": "Minimum word count",
+              "minimum": 1
+            },
+            "tone_check": {
+              "type": "boolean",
+              "description": "Enable semantic tone validation"
+            }
+          }
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "require_schema_validation": {
+              "type": "boolean"
+            },
+            "max_null_percentage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "require_data_types": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+
+    "AuditConfig": {
+      "type": "object",
+      "description": "Audit logging configuration",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "level": {
+          "type": "string",
+          "enum": ["none", "summary", "detailed", "forensic"],
+          "default": "summary"
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "capability_invocations",
+              "governance_decisions",
+              "enforcement_results",
+              "data_access",
+              "user_identity",
+              "timestamps",
+              "token_usage",
+              "model_used"
+            ]
+          }
+        },
+        "destination": {
+          "type": "string",
+          "description": "Where to send audit logs (URL, file path, or service identifier)"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "structured"],
+          "default": "json"
+        },
+        "retention": {
+          "type": "string",
+          "description": "How long to retain logs (ISO 8601 duration)",
+          "examples": ["P90D", "P7Y"]
+        },
+        "tamper_proof": {
+          "type": "boolean",
+          "description": "Enable immutable/append-only logging",
+          "default": false
+        },
+        "pii_masking": {
+          "type": "boolean",
+          "description": "Auto-mask PII in audit logs",
+          "default": true
+        }
+      }
+    },
+
+    "Dependency": {
+      "type": "object",
+      "description": "Dependency on another AIM manifest",
+      "required": ["aim"],
+      "additionalProperties": false,
+      "properties": {
+        "aim": {
+          "type": "string",
+          "description": "Manifest package name"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semver range constraint"
+        },
+        "registry": {
+          "type": "string",
+          "description": "Registry URL (defaults to Manifest Registry)",
+          "format": "uri"
+        },
+        "override": {
+          "type": "object",
+          "description": "Local field overrides for this dependency",
+          "additionalProperties": true
+        }
+      }
+    },
+
+    "Lifecycle": {
+      "type": "object",
+      "description": "Lifecycle event hooks",
+      "additionalProperties": false,
+      "properties": {
+        "on_init": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LifecycleHook" }
+        },
+        "on_capability_load": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LifecycleHook" }
+        },
+        "on_governance_trigger": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LifecycleHook" }
+        },
+        "on_error": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LifecycleHook" }
+        },
+        "on_complete": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LifecycleHook" }
+        },
+        "on_escalation": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LifecycleHook" }
+        }
+      }
+    },
+
+    "LifecycleHook": {
+      "type": "object",
+      "required": ["action"],
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "string",
+          "description": "Hook action type",
+          "enum": ["log", "notify", "webhook", "command"]
+        },
+        "config": {
+          "type": "object",
+          "description": "Action-specific configuration",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

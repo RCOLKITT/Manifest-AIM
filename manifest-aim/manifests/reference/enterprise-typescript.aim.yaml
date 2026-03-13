@@ -1,0 +1,306 @@
+aim: "1.0"
+
+metadata:
+  name: enterprise-typescript
+  version: 1.0.0
+  description: "Enterprise-grade TypeScript development standards with security enforcement"
+  authors: ["Vaspera Capital"]
+  tags: [typescript, security, enterprise, production, node]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Senior TypeScript engineer who writes production-grade, secure, maintainable code"
+  domain: software-engineering
+  environment: production
+  compliance: [soc2]
+
+governance:
+  rules:
+    # ── Security (Static Enforcement) ──
+
+    - name: no-hardcoded-secrets
+      description: "Detect hardcoded API keys, passwords, tokens, and secrets"
+      category: security
+      enforcement: static
+      detect:
+        type: tool
+        command: "semgrep --config=p/secrets --json {{file}}"
+        match_condition: "results.length > 0"
+        install: "pip install semgrep"
+      action: block
+      severity: critical
+      message: "Hardcoded secrets detected. Use environment variables or a secrets manager."
+      fix_hint: "Replace hardcoded values with process.env.VARIABLE_NAME"
+
+    - name: no-sql-injection
+      description: "Detect string concatenation in SQL queries"
+      category: security
+      enforcement:
+        primary: static
+        fallback: semantic
+      detect:
+        type: pattern
+        match: "(query|execute)\\s*\\(\\s*[`'\"].*\\$\\{|\\+\\s*[a-zA-Z]"
+        file_types: [ts, js]
+      action: block
+      severity: critical
+      message: "Possible SQL injection via string concatenation. Use parameterized queries."
+      fix_hint: "Use parameterized queries: db.query('SELECT * FROM users WHERE id = $1', [userId])"
+
+    - name: no-eval
+      description: "Prevent use of eval() and similar dynamic code execution"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b(eval|Function)\\s*\\("
+        file_types: [ts, js]
+      action: block
+      severity: critical
+      message: "eval() and Function() are forbidden. They enable arbitrary code execution."
+
+    # ── Type Safety (Static Enforcement) ──
+
+    - name: strict-typescript
+      description: "Enforce TypeScript strict mode compilation"
+      category: quality
+      enforcement: static
+      detect:
+        type: tool
+        command: "npx tsc --noEmit --strict {{file}}"
+        exit_code_fail: non-zero
+      action: block
+      severity: error
+      message: "TypeScript strict mode violations detected"
+      fix_hint: "Replace 'any' types with explicit types or generics"
+
+    - name: no-any-type
+      description: "Forbid usage of the 'any' type"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: ":\\s*any\\b|<any>|as\\s+any"
+        file_types: [ts]
+      action: block
+      severity: error
+      message: "The 'any' type is forbidden. Use explicit types, generics, or 'unknown'."
+      fix_hint: "Use 'unknown' for truly unknown types, then narrow with type guards"
+
+    # ── Code Quality (Static Enforcement) ──
+
+    - name: no-console-in-production
+      description: "Remove console.log statements from production code"
+      category: quality
+      enforcement: static
+      when: "environment == 'production'"
+      detect:
+        type: pattern
+        match: "console\\.(log|debug|info|warn)\\("
+        file_types: [ts, js]
+      action: block
+      severity: warning
+      message: "console.log is forbidden in production. Use structured logging."
+      fix_hint: "Use a structured logger: logger.info('message', { context })"
+
+    - name: no-empty-catch
+      description: "Catch blocks must handle or log errors meaningfully"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}"
+        file_types: [ts, js]
+      action: block
+      severity: error
+      message: "Empty catch blocks silently swallow errors. Log or handle the error."
+      fix_hint: "At minimum: catch (error) { logger.error('context', { error }); throw error; }"
+
+    # ── Architecture (Semantic Enforcement) ──
+
+    - name: clean-architecture
+      description: "Domain logic must be separated from infrastructure concerns"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Evaluate whether this code follows clean architecture principles:
+          1. Domain/business logic modules do not import from infrastructure layers
+             (no direct imports of database clients, HTTP frameworks, or external services)
+          2. Dependencies point inward — infrastructure depends on domain, not vice versa
+          3. Business logic is not embedded in route handlers or controllers
+          4. Data access uses repository pattern or equivalent abstraction
+        model: standard
+        threshold: 0.85
+        examples:
+          - input: "import { prisma } from '../lib/prisma' // in a domain service"
+            verdict: fail
+            reason: "Domain service directly imports infrastructure (Prisma ORM)"
+          - input: "class OrderService { constructor(private repo: OrderRepository) {} }"
+            verdict: pass
+            reason: "Domain service depends on abstraction, not infrastructure"
+      action: warn
+      severity: warning
+      message: "Code may violate clean architecture. Review domain/infrastructure boundaries."
+
+    - name: input-validation-required
+      description: "API handlers must validate all input"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if this API handler/endpoint validates its input:
+          - Request body, query params, and path params should be validated
+          - Validation should use a schema library (zod, joi, yup, etc.)
+          - Validation must happen before any business logic
+          - Missing validation on any input vector is a failure
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: error
+      message: "API handler missing input validation. Use zod or equivalent."
+      fix_hint: "Add: const parsed = schema.parse(req.body) before any business logic"
+
+    # ── Style (Injected Enforcement) ──
+
+    - name: prefer-composition
+      description: "Favor composition over deep inheritance hierarchies"
+      category: style
+      enforcement: injected
+      action: log
+      instruction: |
+        Prefer composition over inheritance in all object-oriented code.
+        Use dependency injection for testability.
+        Class hierarchies should never exceed 2 levels deep.
+        If you need polymorphism, prefer interfaces and composition.
+      severity: info
+
+    - name: meaningful-names
+      description: "Use descriptive, unambiguous names"
+      category: style
+      enforcement: injected
+      action: log
+      instruction: |
+        All variables, functions, classes, and types must have descriptive names.
+        Avoid single-letter variables except in trivial loops (i, j, k).
+        Function names should describe what they do, not how they do it.
+        Boolean variables should read as questions: isActive, hasPermission, canEdit.
+      severity: info
+
+    - name: structured-error-handling
+      description: "Use structured error patterns throughout"
+      category: quality
+      enforcement: injected
+      action: log
+      instruction: |
+        Follow these error handling patterns:
+        1. Create custom error classes for domain errors (extend Error)
+        2. Include error codes, HTTP status mapping, and context
+        3. Never expose internal error details to API consumers
+        4. Always include correlation/request IDs in error logs
+        5. Use Result<T, E> pattern for expected failures, throw for unexpected
+      severity: info
+
+  quality_gates:
+    code:
+      test_coverage_minimum: 80
+      require_types: strict
+      max_complexity: 10
+      max_file_length: 400
+      require_error_handling: true
+      require_logging: structured
+      require_input_validation: true
+      forbidden_patterns:
+        - "console\\.log"
+        - "\\bany\\b"
+        - "TODO|FIXME|HACK"
+
+  transforms:
+    - name: add-file-header
+      when: "file.is_new == true"
+      transform:
+        type: inject
+        position: top
+        template: |
+          /**
+           * {{file.name}}
+           * @module {{module_name}}
+           * @generated AIM manifest: enterprise-typescript v1.0.0
+           */
+
+  audit:
+    enabled: true
+    level: detailed
+    include:
+      - governance_decisions
+      - enforcement_results
+      - timestamps
+    format: json
+    pii_masking: true
+
+knowledge:
+  - name: security-checklist
+    trigger: "creating API endpoints, auth flows, data handlers, or middleware"
+    priority: 100
+    content: |
+      ## Security Checklist
+
+      Before delivering any code that handles user input, authentication,
+      or sensitive data, verify ALL of the following:
+
+      1. **Input Validation** — All inputs validated and sanitized (use zod schemas)
+      2. **Authentication** — Auth middleware applied to protected routes
+      3. **Authorization** — Resource-level permission checks (not just route-level)
+      4. **Rate Limiting** — Configured for all public endpoints
+      5. **Secrets** — Loaded from environment variables, never hardcoded
+      6. **SQL Safety** — All queries parameterized (no string concatenation)
+      7. **CORS** — Configured explicitly (no wildcard in production)
+      8. **Error Responses** — Never leak stack traces or internal details
+      9. **Logging** — Structured logs with correlation IDs for request tracing
+      10. **Dependencies** — Audited for known vulnerabilities (npm audit)
+
+  - name: project-structure
+    trigger: "creating new services, modules, or project structure"
+    priority: 80
+    content: |
+      ## Project Structure
+
+      Follow this standard layout for all TypeScript services:
+
+      ```
+      src/
+      ├── domain/           # Business logic — NO infrastructure imports
+      │   ├── entities/     # Domain models
+      │   ├── services/     # Domain services
+      │   ├── events/       # Domain events
+      │   └── errors/       # Domain-specific error classes
+      ├── application/      # Use cases — orchestrates domain logic
+      │   ├── commands/     # Write operations
+      │   ├── queries/      # Read operations
+      │   └── dtos/         # Data transfer objects
+      ├── infrastructure/   # External concerns
+      │   ├── database/     # Repository implementations
+      │   ├── http/         # API routes and controllers
+      │   ├── messaging/    # Event bus, queues
+      │   └── config/       # Environment config
+      └── shared/           # Cross-cutting utilities
+          ├── logging/
+          ├── errors/
+          └── types/
+      ```
+
+  - name: testing-standards
+    trigger: "writing tests or test-related code"
+    priority: 60
+    content: |
+      ## Testing Standards
+
+      - Unit tests for all domain logic (aim for >90% coverage in domain/)
+      - Integration tests for repository implementations
+      - API tests for all endpoints (happy path + error cases)
+      - Use descriptive test names: "should [expected behavior] when [condition]"
+      - Follow Arrange-Act-Assert pattern
+      - Mock external dependencies, never domain logic
+      - Test error paths explicitly — don't just test the happy path

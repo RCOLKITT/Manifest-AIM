@@ -1,0 +1,17 @@
+aim: "1.0"
+metadata:
+  name: warning-cases
+  version: 1.0.0
+  description: "Manifest that should trigger semantic warnings"
+context:
+  compliance: [hipaa, soc2]
+governance:
+  rules:
+    - name: critical-but-warn
+      action: warn
+      severity: critical
+      message: "Critical rule that only warns"
+    - name: block-without-enforcement
+      action: block
+      severity: error
+      message: "Blocking rule with no enforcement or detect"

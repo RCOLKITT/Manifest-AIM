@@ -1,0 +1,5 @@
+aim: "2.0"
+metadata:
+  name: bad-version
+  version: 1.0.0
+  description: "Invalid AIM version"

@@ -1,0 +1,239 @@
+aim: "1.0"
+
+metadata:
+  name: full-valid
+  version: 2.1.0
+  description: "Full AIM manifest with all sections populated"
+  authors: ["test@example.com"]
+  tags: [test, full, typescript]
+  license: "MIT"
+
+context:
+  persona: "Senior engineer"
+  domain: software-engineering
+  environment: production
+  organization: acme-corp
+  compliance: [soc2]
+  data_classification: [public, internal, confidential]
+  locale: en-US
+  variables:
+    team: platform
+
+capabilities:
+  - name: deploy-service
+    tags: [deploy, kubernetes, infrastructure]
+    index: "Deploy a containerized service to Kubernetes"
+    schema:
+      inputs:
+        service_name:
+          type: string
+          description: "Name of the service"
+          required: true
+        environment:
+          type: string
+          enum: [dev, staging, production]
+        image_tag:
+          type: string
+      outputs:
+        deployment_url:
+          type: string
+        status:
+          type: string
+      preconditions:
+        - "CI pipeline must have passed"
+        - "Image must exist in container registry"
+      side_effects:
+        - "Modifies running deployment in target environment"
+      idempotent: true
+      timeout: "PT5M"
+    instructions: |
+      Deploy using rolling update strategy.
+      Always verify health checks pass before marking complete.
+      If deploying to production, ensure canary has been validated first.
+    examples:
+      - description: "Deploy to staging"
+        input:
+          service_name: api-gateway
+          environment: staging
+          image_tag: "v2.1.0"
+        expected_output:
+          status: success
+    anti_patterns:
+      - description: "Never deploy directly to production without canary"
+        example: "deploy-service --env production --skip-canary"
+    dispatch:
+      type: cli
+      config:
+        command: "kubectl apply -f {{manifest}} --context={{environment}}"
+    constraints:
+      - when: "environment == 'production'"
+        rule: "Requires change ticket and tech lead approval"
+        enforcement: semantic
+      - when: "environment == 'dev'"
+        rule: "Auto-deploy on successful build"
+    requires: []
+    retry:
+      max_attempts: 3
+      backoff: exponential
+      delay: "PT10S"
+
+knowledge:
+  - name: deployment-runbook
+    trigger: "deploying services or managing infrastructure"
+    trigger_capabilities: [deploy-service]
+    priority: 100
+    scope: [deploy-service]
+    content: |
+      ## Deployment Runbook
+      1. Verify CI has passed
+      2. Check canary metrics
+      3. Deploy with rolling update
+      4. Verify health checks
+      5. Monitor error rates for 15 minutes
+    format: markdown
+    max_tokens: 500
+    ttl: "PT1H"
+
+governance:
+  rules:
+    - name: require-change-ticket
+      description: "Production changes require a change ticket"
+      category: compliance
+      when: "environment == 'production'"
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: "Verify that a change ticket reference is present"
+        model: fast
+        threshold: 0.8
+      action: require_approval
+      severity: error
+      message: "Production changes require an approved change ticket"
+      approvers: [tech-lead, platform-team]
+      tags: [production, compliance]
+      priority: 90
+
+    - name: no-secrets-in-config
+      description: "No secrets in configuration files"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(password|secret|api_key)\\s*[=:]\\s*['\"][^'\"]+['\"]"
+        scope: output
+        file_types: [yaml, json, env, ts, js]
+      action: block
+      severity: critical
+      message: "Secrets detected in configuration"
+      fix_hint: "Use environment variables or a secrets manager"
+
+    - name: code-style-guidance
+      description: "General code style preferences"
+      category: style
+      enforcement: injected
+      action: log
+      instruction: "Use consistent naming conventions and prefer explicit over implicit"
+      severity: info
+
+  transforms:
+    - name: strip-debug-logs
+      when: "environment == 'production'"
+      detect:
+        type: pattern
+        match: "console\\.debug\\("
+      transform:
+        type: remove_match
+        scope: output
+
+  guardrails:
+    input:
+      - name: block-malicious-prompts
+        detect:
+          type: pattern
+          match: "ignore previous instructions"
+        action: block
+        message: "Potentially malicious prompt detected"
+    output:
+      - name: redact-internal-urls
+        detect:
+          type: pattern
+          match: "https?://internal\\."
+        action: transform
+        message: "Internal URLs redacted from output"
+
+  quality_gates:
+    code:
+      test_coverage_minimum: 80
+      require_types: strict
+      max_complexity: 10
+      max_file_length: 400
+      require_error_handling: true
+      require_logging: structured
+      require_input_validation: true
+      forbidden_patterns:
+        - "console\\.log"
+      required_patterns:
+        - "logger\\."
+    content:
+      max_reading_level: 12
+      require_citations: false
+      max_length: 5000
+      tone_check: true
+    data:
+      require_schema_validation: true
+      max_null_percentage: 5
+
+  audit:
+    enabled: true
+    level: detailed
+    include:
+      - capability_invocations
+      - governance_decisions
+      - enforcement_results
+      - timestamps
+      - token_usage
+    format: json
+    retention: "P90D"
+    tamper_proof: true
+    pii_masking: true
+
+  retry_policy:
+    max_global_retries: 3
+    retry_budget_tokens: 5000
+    escalate_after: 2
+
+dependencies:
+  - aim: security-baseline
+    version: ">=1.0.0"
+
+inherits:
+  - acme-base-standards
+
+composition:
+  strategy: most_restrictive
+
+lifecycle:
+  on_init:
+    - action: log
+      config:
+        message: "Manifest loaded"
+  on_governance_trigger:
+    - action: webhook
+      config:
+        url: "https://hooks.example.com/aim-events"
+  on_error:
+    - action: notify
+      config:
+        channel: "#platform-alerts"
+  on_complete:
+    - action: log
+      config:
+        message: "Task complete"
+
+runtime:
+  token_budget: 10000
+  tier1_cache_ttl: "PT5M"
+  parallel_enforcement: true
+  enforcement_timeout: "PT30S"
+  judge_model: "claude-haiku"
+  judge_temperature: 0.1

@@ -1,0 +1,5 @@
+aim: "1.0"
+metadata:
+  name: minimal-valid
+  version: 1.0.0
+  description: "Minimal valid AIM manifest"
