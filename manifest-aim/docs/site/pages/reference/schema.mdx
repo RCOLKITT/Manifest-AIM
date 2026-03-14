@@ -1,0 +1,86 @@
+# Manifest Schema
+
+The AIM manifest schema defines the structure for agent instruction manifests.
+
+## Top-Level Structure
+
+```yaml
+aim: "1.0"              # Protocol version (required)
+
+metadata:               # Manifest metadata (required)
+  name: string          # Kebab-case identifier
+  version: string       # Semver version
+  description: string   # Brief description
+
+context:                # Operational context
+  persona: string       # Agent role/persona
+  audience: string      # Target users
+  domain: string        # Subject domain
+  environment: string   # dev | staging | production
+
+capabilities: []        # What the agent can do
+
+knowledge: []           # Domain knowledge and guidelines
+
+governance:             # Rules and constraints
+  rules: []
+  guardrails: {}
+  quality_gates: {}
+  audit: {}
+
+dependencies: []        # Other manifests this depends on
+inherits: []           # Base manifests to extend
+```
+
+## Capabilities
+
+```yaml
+capabilities:
+  - name: string              # Unique identifier
+    tags: [string]            # Categorization tags
+    index: string             # One-line description (Tier 0)
+
+    schema:                   # Tier 1: Structured interface
+      inputs: [...]
+      outputs: [...]
+      preconditions: [...]
+
+    instructions: string      # Tier 2: Full how-to
+    examples: [...]           # Usage examples
+
+    dispatch:                 # Tier 3: Execution target
+      type: mcp | cli | rest | code
+      config: {...}
+```
+
+## Governance Rules
+
+```yaml
+governance:
+  rules:
+    - name: string
+      description: string
+      category: security | quality | architecture | compliance
+
+      enforcement: static | semantic | injected
+
+      detect:
+        type: tool | pattern | semantic
+        # For tool:
+        command: string
+        # For pattern:
+        match: string (regex)
+        # For semantic:
+        criteria: string
+        model: string
+        threshold: number
+
+      action: block | warn | require_approval | log
+      severity: critical | error | warning | info
+      message: string
+      fix_hint: string
+```
+
+## Full Schema
+
+See the [JSON Schema](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/schemas/aim-v1.0.schema.json) for the complete specification.

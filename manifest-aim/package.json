@@ -19,7 +19,7 @@
   "homepage": "https://manifestaim.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/manifest-aim/manifest"
+    "url": "https://github.com/RCOLKITT/Manifest-AIM"
   },
   "bin": {
     "manifest": "./dist/cli/index.js"

@@ -1,0 +1,49 @@
+# Full Specification
+
+The complete AIM protocol specification is maintained in the repository.
+
+## Protocol Version
+
+Current version: **AIM 1.0**
+
+## Core Concepts
+
+### Progressive Disclosure (4-Tier Model)
+
+AIM uses a tiered loading model to minimize token consumption:
+
+| Tier | Name | Token Cost | When Loaded |
+|------|------|-----------|-------------|
+| 0 | Index | ~5 tokens/capability | Initialization |
+| 1 | Schema | ~50-200 tokens | On relevance match |
+| 2 | Instruction | Variable | On commitment |
+| 3 | Execution | 0 tokens | On dispatch (never in context) |
+
+### Transport Agnosticism
+
+AIM is transport-agnostic. Tier 3 dispatch supports:
+- **MCP**: Model Context Protocol servers
+- **CLI**: Command-line tools
+- **REST**: HTTP APIs
+- **Code**: Direct function calls
+- **Agent**: Delegation to other agents
+
+### Enforcement Mechanisms
+
+Three enforcement approaches:
+1. **Static**: Deterministic tool-based checks (semgrep, tsc, eslint)
+2. **Semantic**: LLM-as-judge evaluation with configurable thresholds
+3. **Injected**: Rules included in agent context (guidance only)
+
+### Composability
+
+Manifests can be composed through:
+- **Inheritance**: Extend base manifests
+- **Dependencies**: Reference other manifests
+- **Composition strategies**: `most_restrictive`, `last_wins`, `priority_weighted`
+
+## Documentation
+
+For the complete specification, see:
+- [SPECIFICATION.md](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/docs/SPECIFICATION.md) - Full protocol specification
+- [JSON Schema](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/schemas/aim-v1.0.schema.json) - Machine-readable schema

@@ -1,0 +1,7 @@
+export default {
+  index: "Introduction",
+  quickstart: "Quickstart",
+  guides: "Guides",
+  reference: "Reference",
+  manifests: "Manifest Gallery",
+};

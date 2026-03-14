@@ -9,7 +9,7 @@ import { resolve, join, extname } from "node:path";
 import { createHash } from "node:crypto";
 import yaml from "js-yaml";
 
-const DEFAULT_REGISTRY_URL = "https://registry.manifestaim.dev";
+const DEFAULT_REGISTRY_URL = "https://jhwfncfwmpttwfcyiefk.supabase.co/functions/v1";
 const CONFIG_DIR = join(
   process.env.HOME ?? process.env.USERPROFILE ?? ".",
   ".manifest-aim",
@@ -150,7 +150,7 @@ export async function publishManifest(
 
   const prepared = prepareManifestForPublish(manifestPath);
 
-  const response = await fetch(`${config.registryUrl}/api/v1/publish`, {
+  const response = await fetch(`${config.registryUrl}/publish`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -175,7 +175,7 @@ export async function publishManifest(
     throw new Error(`Publish failed (${response.status}): ${error}`);
   }
 
-  const result = await response.json();
+  await response.json();
   return {
     name: prepared.metadata.name,
     version: prepared.metadata.version,
@@ -195,7 +195,7 @@ export async function installManifest(
 ): Promise<InstallResult> {
   const versionParam = version ? `?version=${version}` : "";
   const response = await fetch(
-    `${config.registryUrl}/api/v1/manifests/${packageName}${versionParam}`,
+    `${config.registryUrl}/manifests/${packageName}${versionParam}`,
     {
       headers: {
         "User-Agent": "manifest-aim-cli/0.1.0",
@@ -228,7 +228,7 @@ export async function installManifest(
 
   // Record download
   try {
-    await fetch(`${config.registryUrl}/api/v1/download`, {
+    await fetch(`${config.registryUrl}/download`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -264,7 +264,7 @@ export async function searchManifests(
   if (options?.limit) params.set("limit", String(options.limit));
 
   const response = await fetch(
-    `${config.registryUrl}/api/v1/search?${params.toString()}`,
+    `${config.registryUrl}/search?${params.toString()}`,
     {
       headers: { "User-Agent": "manifest-aim-cli/0.1.0" },
     },

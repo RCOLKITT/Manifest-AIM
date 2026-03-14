@@ -1,6 +1,6 @@
-{
+export default {
   "writing-rules": "Writing Rules",
   "progressive-loading": "Progressive Loading",
   "composing-manifests": "Composing Manifests",
-  "ci-cd": "CI/CD Integration"
-}
+  "ci-cd": "CI/CD Integration",
+};

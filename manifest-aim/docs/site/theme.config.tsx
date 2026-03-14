@@ -10,11 +10,6 @@ const config: DocsThemeConfig = {
   footer: {
     content: "Manifest AIM — Define it. Manifest it.",
   },
-  useNextSeoProps() {
-    return {
-      titleTemplate: "%s – Manifest AIM",
-    };
-  },
   head: (
     <>
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />

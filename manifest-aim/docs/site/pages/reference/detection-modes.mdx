@@ -1,0 +1,62 @@
+# Detection Modes
+
+AIM supports three enforcement detection modes, each suited for different types of governance rules.
+
+## Static Detection
+
+Deterministic, tool-based enforcement using established static analysis tools.
+
+```yaml
+enforcement: static
+detect:
+  type: tool
+  command: "tsc --noEmit"
+```
+
+**Best for:** Code quality, type safety, security patterns, formatting
+
+**Tools:** TypeScript (`tsc`), ESLint, Semgrep, Prettier, custom scripts
+
+## Pattern Detection
+
+Regex-based pattern matching for quick, lightweight checks.
+
+```yaml
+enforcement: static
+detect:
+  type: pattern
+  match: "console\\.log\\("
+```
+
+**Best for:** Simple prohibited patterns, naming conventions, comment requirements
+
+## Semantic Detection
+
+LLM-as-judge evaluation for nuanced, context-aware enforcement.
+
+```yaml
+enforcement: semantic
+detect:
+  type: semantic
+  criteria: "Code follows clean architecture principles with proper separation of concerns"
+  model: claude-sonnet
+  threshold: 0.8
+  few_shot:
+    - input: "Direct database call in controller"
+      expected: false
+    - input: "Repository pattern with dependency injection"
+      expected: true
+```
+
+**Best for:** Architecture decisions, code quality beyond syntax, business logic validation, tone/style guidelines
+
+## Choosing a Detection Mode
+
+| Scenario | Recommended Mode |
+|----------|-----------------|
+| "No console.log in production" | Pattern |
+| "TypeScript strict mode" | Static (tsc) |
+| "Security vulnerabilities" | Static (semgrep) |
+| "Clean architecture" | Semantic |
+| "Code is readable" | Semantic |
+| "API naming conventions" | Pattern or Static |
