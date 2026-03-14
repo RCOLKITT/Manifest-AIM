@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "cd manifest-aim/docs/site && npm install && npm run build",
+  "outputDirectory": "manifest-aim/docs/site/out",
+  "installCommand": "echo 'Skipping root install'",
+  "cleanUrls": true,
+  "trailingSlash": false
+}
