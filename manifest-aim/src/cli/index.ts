@@ -8,6 +8,8 @@ import { doctorCommand } from "./commands/doctor.js";
 import { enforceCommand } from "./commands/enforce.js";
 import { compileCommand } from "./commands/compile.js";
 import { wrapCommand } from "./commands/wrap.js";
+import { tierCommand } from "./commands/tier.js";
+import { diffCommand } from "./commands/diff.js";
 
 const program = new Command();
 
@@ -71,6 +73,21 @@ program
   .option("-e, --environment <env>", "Override environment context")
   .option("--dry-run", "Print to stdout instead of writing files")
   .action(wrapCommand);
+
+program
+  .command("tier")
+  .description("Inspect capabilities at a specific tier level (0-3)")
+  .argument("[filter]", "Filter capabilities by name or tag")
+  .option("-m, --manifest <file>", "Path to manifest file", "aim.yaml")
+  .option("-t, --tier <number>", "Tier level to load (0=index, 1=schema, 2=instructions, 3=dispatch)", "0")
+  .action(tierCommand);
+
+program
+  .command("diff")
+  .description("Compare two AIM manifests and show differences")
+  .argument("<fileA>", "First manifest file")
+  .argument("<fileB>", "Second manifest file")
+  .action(diffCommand);
 
 program
   .command("publish")

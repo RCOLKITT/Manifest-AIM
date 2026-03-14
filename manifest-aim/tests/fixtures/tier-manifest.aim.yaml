@@ -1,0 +1,159 @@
+aim: "1.0"
+
+metadata:
+  name: tier-test
+  version: 1.0.0
+  description: "Test manifest with full capability tiers"
+
+context:
+  persona: "Full-stack engineer"
+  domain: software-engineering
+
+capabilities:
+  - name: database-migrate
+    tags: [database, migration, schema]
+    index: "Run database schema migrations with rollback support"
+    description: "Run database schema migrations with rollback support"
+    schema:
+      inputs:
+        direction:
+          type: string
+          description: "Migration direction"
+          required: true
+          enum: ["up", "down"]
+        steps:
+          type: integer
+          description: "Number of migration steps"
+          default: 1
+      outputs:
+        applied:
+          type: array
+          description: "List of applied migration names"
+        status:
+          type: string
+          description: "Final migration status"
+      preconditions:
+        - "Database connection must be available"
+        - "No pending transactions"
+      side_effects:
+        - "Modifies database schema"
+        - "May alter data"
+      idempotent: false
+      timeout: "5m"
+    instructions: |
+      Run migrations using the project's migration tool (e.g., Prisma, Knex, TypeORM).
+
+      1. Always check current migration status first
+      2. Review the migration file before applying
+      3. Take a database backup before production migrations
+      4. Verify the migration succeeded by checking schema state
+      5. If migration fails, attempt rollback and report the error
+    examples:
+      - description: "Apply next pending migration"
+        input: { direction: "up", steps: 1 }
+        expected_output: { applied: ["20240101_add_users_table"], status: "success" }
+      - description: "Rollback last migration"
+        input: { direction: "down", steps: 1 }
+        expected_output: { applied: ["20240101_add_users_table"], status: "rolled_back" }
+    anti_patterns:
+      - description: "Never run multiple migrations in production without reviewing each one"
+        example: "migrate up --all in production"
+      - description: "Never skip the backup step for production databases"
+    dispatch:
+      type: cli
+      config:
+        command: "npx prisma migrate"
+        working_directory: "."
+
+  - name: run-tests
+    tags: [testing, ci, quality]
+    index: "Execute test suite with coverage reporting"
+    description: "Execute test suite with coverage reporting"
+    schema:
+      inputs:
+        scope:
+          type: string
+          description: "Test scope"
+          enum: ["unit", "integration", "e2e", "all"]
+          default: "all"
+        pattern:
+          type: string
+          description: "File pattern to match"
+      outputs:
+        passed:
+          type: integer
+          description: "Number of passing tests"
+        failed:
+          type: integer
+          description: "Number of failing tests"
+        coverage:
+          type: number
+          description: "Code coverage percentage"
+      preconditions:
+        - "Dependencies must be installed"
+      idempotent: true
+      timeout: "10m"
+    instructions: |
+      Run the project test suite using the configured test runner.
+
+      1. Default: run all tests with coverage
+      2. For unit tests: run only unit test files
+      3. Report failures clearly with file:line references
+      4. If coverage drops below the quality gate threshold, warn the user
+    examples:
+      - description: "Run all tests"
+        input: { scope: "all" }
+        expected_output: { passed: 42, failed: 0, coverage: 87.5 }
+    dispatch:
+      type: cli
+      config:
+        command: "npx vitest run --coverage"
+
+  - name: deploy-preview
+    tags: [deployment, preview, staging]
+    index: "Deploy a preview environment for the current branch"
+    description: "Deploy a preview environment for the current branch"
+    schema:
+      inputs:
+        branch:
+          type: string
+          description: "Git branch to deploy"
+          required: true
+      outputs:
+        url:
+          type: string
+          description: "Preview deployment URL"
+        status:
+          type: string
+          description: "Deployment status"
+      preconditions:
+        - "CI checks must pass"
+        - "Branch must be pushed to remote"
+      side_effects:
+        - "Creates cloud resources"
+        - "Consumes deployment budget"
+      idempotent: false
+      timeout: "15m"
+    instructions: |
+      Deploy a preview environment using the project's deployment pipeline.
+
+      1. Verify CI checks passed for the branch
+      2. Trigger preview deployment
+      3. Wait for deployment to complete
+      4. Return the preview URL
+      5. Notify the user when ready
+    anti_patterns:
+      - description: "Never deploy directly to production from a preview"
+    dispatch:
+      type: rest
+      config:
+        endpoint: "https://api.vercel.com/v13/deployments"
+        method: "POST"
+
+governance:
+  rules:
+    - name: code-standards
+      enforcement: injected
+      action: log
+      instruction: "Follow TypeScript strict mode with ESLint"
+      severity: info

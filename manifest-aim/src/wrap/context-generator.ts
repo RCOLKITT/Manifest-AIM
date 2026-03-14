@@ -8,6 +8,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { extname, resolve, dirname } from "node:path";
 import yaml from "js-yaml";
+import { generateProgressiveLoadingProtocol } from "../tier/loader.js";
 import type {
   ManifestContext,
   InjectedRule,
@@ -113,6 +114,7 @@ export function extractManifestContext(
     knowledgeUnits,
     qualityGates,
     capabilities: capabilityIndexes,
+    rawCapabilities: capabilities,
     governanceRules,
   };
 }
@@ -265,8 +267,12 @@ export function generateContextText(ctx: ManifestContext): {
     section("knowledge", knowledgeLines);
   }
 
-  // Capabilities (Tier 0 index only)
-  if (ctx.capabilities.length > 0) {
+  // Capabilities — Progressive Loading Protocol (Tier 0 index)
+  if (ctx.rawCapabilities.length > 0) {
+    const protocolText = generateProgressiveLoadingProtocol(ctx.rawCapabilities);
+    section("capabilities", protocolText.split("\n"));
+  } else if (ctx.capabilities.length > 0) {
+    // Fallback: simple capability list if raw not available
     const capLines: string[] = [
       "## Available Capabilities",
       "",

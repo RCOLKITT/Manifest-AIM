@@ -43,6 +43,8 @@ export interface ManifestContext {
   knowledgeUnits: KnowledgeUnit[];
   qualityGates: Record<string, unknown>;
   capabilities: CapabilityIndex[];
+  /** Raw capability objects for progressive loading protocol generation. */
+  rawCapabilities: Array<Record<string, unknown>>;
   governanceRules: GovernanceRuleSummary[];
 }
 
