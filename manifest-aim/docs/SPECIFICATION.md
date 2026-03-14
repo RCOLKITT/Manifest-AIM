@@ -1123,7 +1123,13 @@ Platform vendors implement AIM protocol natively. The spec becomes a standard an
   - Dry-run mode (stdout preview without file writes)
   - Platform-specific guidance messages in CLI output
   - 32 tests covering context extraction, generation, platform config, integration, and CLI
-- [ ] Implement Tier 0-3 progressive loading protocol in runtime
+- [x] Implement Tier 0-3 progressive loading protocol
+  - TierLoader extracts capabilities at Tier 0/1/2/3 with token estimation
+  - `manifest tier` command: inspect capabilities at any tier with filtering
+  - Wrap output includes Progressive Loading Protocol section
+  - Token savings: 99% reduction (Tier 0 vs full expansion)
+  - `manifest diff` command: compare two manifests, show governance changes
+  - 20 tests covering all tiers, filtering, CLI, and protocol generation
 - [x] Implement all seven governance actions in CLI output
   - block (exit 1), warn, log, require_approval, escalate, transform, retry
   - Action-specific summary counts in CLI output
