@@ -1,0 +1,26 @@
+aim: "1.0"
+
+metadata:
+  name: strict-fail-test
+  version: 1.0.0
+  description: "Tests strict_fail composition"
+
+inherits:
+  - ./base-standards.aim.yaml
+
+composition:
+  strategy: strict_fail
+
+governance:
+  rules:
+    # This conflicts with base's no-console (action: warn vs block)
+    - name: no-console
+      description: "No console.log — strict override"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "console\\.log\\("
+        file_types: [ts, js]
+      action: block
+      severity: error
+      message: "console.log is forbidden"

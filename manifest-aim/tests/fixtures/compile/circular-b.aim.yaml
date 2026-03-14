@@ -1,0 +1,9 @@
+aim: "1.0"
+
+metadata:
+  name: circular-b
+  version: 1.0.0
+  description: "Circular inheritance test B"
+
+inherits:
+  - ./circular-a.aim.yaml

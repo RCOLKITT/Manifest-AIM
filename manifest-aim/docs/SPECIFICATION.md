@@ -960,7 +960,9 @@ $ manifest wrap cursor
 $ manifest wrap windsurf
 
 # Run enforcement checks against a file or directory (standalone mode)
-$ manifest enforce ./src --report
+$ manifest enforce ./src -m aim.yaml
+$ manifest enforce ./src -m aim.yaml -e production
+$ manifest enforce ./src -m aim.yaml --report
 
 # Publish to Manifest Registry
 $ manifest publish
@@ -1076,15 +1078,32 @@ Platform vendors implement AIM protocol natively. The spec becomes a standard an
 ### Phase 1: Foundation (Months 1-3)
 **Milestone: "It works. I can prove it."**
 
-- [ ] Finalize AIM spec v1.0 as JSON Schema
-- [ ] Build `manifest` CLI: `init`, `validate`, `compile`, `inspect`, `doctor`
-- [ ] Build wrapper-mode runtime (`manifest wrap claude-code`)
-- [ ] Implement Tier 0-3 loading protocol
-- [ ] Implement all three enforcement mechanisms (static, semantic, injected)
-- [ ] Implement all four detection modes (pattern, tool, semantic, composite)
-- [ ] Implement actions: block, warn, transform, log, retry
-- [ ] Create 10 reference manifests:
-  - `enterprise-typescript` — production TypeScript standards
+- [x] Finalize AIM spec v1.0 as JSON Schema
+- [x] Build `manifest` CLI: `init`, `validate`, `inspect`, `doctor`
+- [x] Implement `manifest enforce` — pattern and tool detection against files
+  - Pattern detection: regex matching with file type filtering, line/column reporting
+  - Tool detection: external tool execution (tsc, semgrep) with exit code interpretation
+  - Conditional governance: `when`/`unless` conditions evaluated against context
+  - Actions enforced: block (exit 1), warn, log — with severity levels and fix hints
+  - Environment override: `--environment` flag for production vs development rules
+  - 33 tests covering unit, integration, and CLI layers
+- [x] Create first reference manifest: `enterprise-typescript`
+- [x] Build `manifest compile` — resolve `inherits`/`dependencies`, apply composition strategies
+  - Inheritance chain resolution with circular dependency detection
+  - Dependency resolution with local file path support
+  - Four composition strategies: most_restrictive, last_wins, priority_weighted, strict_fail
+  - Rule merging with field-level conflict resolution
+  - Quality gate merging (stricter values win in most_restrictive)
+  - Capability and knowledge unit merging by name
+  - Override support (top-level and per-dependency)
+  - Compiled output to .aim/compiled.yaml
+  - 28 tests covering resolver, merge engine, compiler, CLI, and compile+enforce integration
+- [ ] Implement semantic enforcement (LLM-as-judge detection mode)
+- [ ] Implement composite detection mode
+- [ ] Build `manifest wrap claude-code` — wrapper-mode runtime
+- [ ] Implement Tier 0-3 progressive loading protocol in runtime
+- [ ] Implement remaining actions: transform, require_approval, escalate, retry
+- [ ] Create remaining reference manifests:
   - `hipaa-healthcare` — HIPAA-compliant agent operations
   - `soc2-engineering` — SOC2 engineering compliance
   - `react-best-practices` — React 19 development standards

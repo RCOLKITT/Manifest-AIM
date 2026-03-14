@@ -1,0 +1,22 @@
+aim: "1.0"
+
+metadata:
+  name: with-dependency
+  version: 1.0.0
+  description: "Manifest that depends on security-baseline"
+
+dependencies:
+  - aim: ./security-baseline.aim.yaml
+
+governance:
+  rules:
+    - name: no-any-type
+      description: "No any types"
+      enforcement: static
+      detect:
+        type: pattern
+        match: ":\\s*any\\b"
+        file_types: [ts]
+      action: block
+      severity: error
+      message: "any type is forbidden"

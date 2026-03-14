@@ -204,9 +204,10 @@ describe("CLI: manifest doctor", () => {
 });
 
 describe("CLI: stub commands", () => {
-  it("manifest compile should show coming soon", () => {
-    const { stdout } = run("compile");
-    expect(stdout).toContain("coming in");
+  it("manifest compile should require valid manifest", () => {
+    const { exitCode, stdout } = run("compile nonexistent.yaml");
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain("Manifest not found");
   });
 
   it("manifest enforce should require manifest file", () => {

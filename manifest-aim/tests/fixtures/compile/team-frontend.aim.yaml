@@ -1,0 +1,65 @@
+aim: "1.0"
+
+metadata:
+  name: team-frontend
+  version: 1.0.0
+  description: "Frontend team standards extending base"
+  authors: ["frontend-team"]
+  tags: [frontend, react, typescript]
+
+inherits:
+  - ./base-standards.aim.yaml
+
+composition:
+  strategy: most_restrictive
+
+context:
+  domain: frontend-engineering
+
+capabilities:
+  - name: code-review
+    index: "Review frontend code for quality, accessibility, and performance"
+  - name: component-design
+    index: "Design and implement React components"
+
+knowledge:
+  - name: react-patterns
+    trigger: "building React components"
+    priority: 80
+    content: |
+      ## React Patterns
+      - Use functional components
+      - Prefer hooks over class lifecycle
+      - Memoize expensive computations
+
+governance:
+  rules:
+    # Override base: make console.log a blocker instead of warning
+    - name: no-console
+      description: "No console.log in production (strict)"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "console\\.log\\("
+        file_types: [ts, tsx, js, jsx]
+      action: block
+      severity: error
+      message: "console.log is forbidden in frontend code"
+
+    # New rule for frontend
+    - name: no-inline-styles
+      description: "No inline styles"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "style\\s*=\\s*\\{\\{"
+        file_types: [tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Use CSS modules or styled-components instead of inline styles"
+
+  quality_gates:
+    code:
+      test_coverage_minimum: 80
+      max_complexity: 10
+      max_file_length: 300

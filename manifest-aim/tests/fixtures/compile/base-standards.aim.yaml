@@ -1,0 +1,65 @@
+aim: "1.0"
+
+metadata:
+  name: base-standards
+  version: 1.0.0
+  description: "Organization-wide base standards"
+  authors: ["platform-team"]
+  tags: [base, standards]
+
+context:
+  persona: "Professional engineer"
+  domain: software-engineering
+  environment: production
+
+capabilities:
+  - name: code-review
+    index: "Review code for quality and correctness"
+
+knowledge:
+  - name: coding-standards
+    trigger: "writing or reviewing code"
+    priority: 50
+    content: |
+      ## Coding Standards
+      - Write clean, readable code
+      - Follow SOLID principles
+      - Keep functions small and focused
+
+governance:
+  rules:
+    - name: no-eval
+      description: "Prevent eval() usage"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\beval\\s*\\("
+        file_types: [ts, js]
+      action: block
+      severity: critical
+      message: "eval() is forbidden"
+
+    - name: no-console
+      description: "No console.log in production"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "console\\.log\\("
+        file_types: [ts, js]
+      action: warn
+      severity: warning
+      message: "console.log detected"
+
+    - name: max-complexity
+      description: "Limit function complexity"
+      enforcement: static
+      action: warn
+      severity: warning
+      message: "Function too complex"
+      priority: 50
+
+  quality_gates:
+    code:
+      test_coverage_minimum: 70
+      max_complexity: 15
+      max_file_length: 500

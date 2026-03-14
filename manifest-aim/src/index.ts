@@ -14,5 +14,8 @@ export { initCommand } from "./cli/commands/init.js";
 export { inspectCommand } from "./cli/commands/inspect.js";
 export { doctorCommand } from "./cli/commands/doctor.js";
 export { enforceCommand } from "./cli/commands/enforce.js";
+export { compileCommand } from "./cli/commands/compile.js";
 export { enforce } from "./enforce/engine.js";
+export { compile } from "./compile/compiler.js";
 export type { EnforceSummary, Violation } from "./enforce/types.js";
+export type { CompileResult, Conflict } from "./compile/types.js";

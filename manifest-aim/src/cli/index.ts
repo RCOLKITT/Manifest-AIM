@@ -6,6 +6,7 @@ import { initCommand } from "./commands/init.js";
 import { inspectCommand } from "./commands/inspect.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { enforceCommand } from "./commands/enforce.js";
+import { compileCommand } from "./commands/compile.js";
 
 const program = new Command();
 
@@ -49,9 +50,7 @@ program
   .description("Resolve dependencies, detect conflicts, produce compiled manifest")
   .argument("[file]", "Path to manifest file", "aim.yaml")
   .option("-o, --output <path>", "Output path for compiled manifest", ".aim/compiled.yaml")
-  .action(() => {
-    console.log("manifest compile — coming in v0.2.0");
-  });
+  .action(compileCommand);
 
 program
   .command("enforce")

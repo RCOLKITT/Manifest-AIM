@@ -1,0 +1,32 @@
+aim: "1.0"
+
+metadata:
+  name: security-baseline
+  version: 1.0.0
+  description: "Security baseline dependency"
+  tags: [security]
+
+governance:
+  rules:
+    - name: no-eval
+      description: "No eval — security variant"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b(eval|Function)\\s*\\("
+        file_types: [ts, js]
+      action: block
+      severity: critical
+      message: "eval() and Function() forbidden (security baseline)"
+
+    - name: no-hardcoded-secrets
+      description: "No hardcoded secrets"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(password|secret|api_key)\\s*[=:]\\s*['\"][^'\"]+['\"]"
+        file_types: [ts, js, yaml, json]
+      action: block
+      severity: critical
+      message: "Hardcoded secrets detected"
+      fix_hint: "Use environment variables"
