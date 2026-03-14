@@ -826,6 +826,16 @@
             }
           }
         },
+        "paths": {
+          "type": "array",
+          "description": "Glob patterns — only enforce this rule on matching file paths (e.g. [\"src/lib/**\"])",
+          "items": { "type": "string" }
+        },
+        "exclude_paths": {
+          "type": "array",
+          "description": "Glob patterns — skip this rule for matching file paths (e.g. [\"src/cli/**\", \"**/*.test.ts\"])",
+          "items": { "type": "string" }
+        },
         "tags": {
           "type": "array",
           "description": "Categorization tags",
