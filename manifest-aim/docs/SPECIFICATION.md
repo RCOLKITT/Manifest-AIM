@@ -1098,7 +1098,16 @@ Platform vendors implement AIM protocol natively. The spec becomes a standard an
   - Override support (top-level and per-dependency)
   - Compiled output to .aim/compiled.yaml
   - 28 tests covering resolver, merge engine, compiler, CLI, and compile+enforce integration
-- [ ] Implement semantic enforcement (LLM-as-judge detection mode)
+- [x] Implement semantic enforcement (LLM-as-judge detection mode)
+  - LLM-as-judge via Anthropic SDK (Claude Haiku/Sonnet/Opus)
+  - Natural language criteria evaluation against code files
+  - Few-shot examples in rule definitions for judge calibration
+  - Confidence threshold gating (only flag when confidence >= threshold)
+  - Three model tiers: fast (Haiku), standard (Sonnet), thorough (Opus)
+  - Graceful degradation when API key unavailable (skips with clear messaging)
+  - Async pipeline: pattern + tool + semantic rules run per-file
+  - Skipped rule reporting in CLI output and EnforceSummary
+  - 39 enforce tests (36 passed, 3 API-key-gated)
 - [ ] Implement composite detection mode
 - [ ] Build `manifest wrap claude-code` — wrapper-mode runtime
 - [ ] Implement Tier 0-3 progressive loading protocol in runtime

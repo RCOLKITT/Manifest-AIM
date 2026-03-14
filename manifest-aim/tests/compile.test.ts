@@ -364,7 +364,7 @@ describe("compile: compiler", () => {
 // ── Integration: Compile then Enforce ──
 
 describe("compile + enforce integration", () => {
-  it("should enforce using a compiled manifest", () => {
+  it("should enforce using a compiled manifest", async () => {
     // First compile team-frontend (which inherits base-standards)
     const tmpDir = mkdtempSync(join(tmpdir(), "manifest-compile-"));
     const compiledPath = join(tmpDir, "compiled.yaml");
@@ -382,7 +382,7 @@ describe("compile + enforce integration", () => {
     // Now enforce the compiled manifest against our violation fixture
     const ENFORCE_TARGET = join(__dirname, "fixtures", "enforce-target");
 
-    const enforceResult = enforce({
+    const enforceResult = await enforce({
       manifestPath: compiledPath,
       targetPath: join(ENFORCE_TARGET, "violations.ts"),
     });

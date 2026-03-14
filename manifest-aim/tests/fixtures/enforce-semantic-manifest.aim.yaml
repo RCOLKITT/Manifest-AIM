@@ -1,0 +1,59 @@
+aim: "1.0"
+
+metadata:
+  name: semantic-test
+  version: 1.0.0
+  description: "Test manifest with semantic enforcement rules"
+
+governance:
+  rules:
+    - name: clean-architecture
+      description: "Domain logic must be separated from infrastructure"
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Evaluate whether this code follows clean architecture principles:
+          1. Domain/business logic modules do not import from infrastructure layers
+             (no direct imports of database clients, HTTP frameworks, or external services)
+          2. Dependencies point inward — infrastructure depends on domain, not vice versa
+          3. Business logic is not embedded in route handlers or controllers
+        model: fast
+        threshold: 0.7
+        examples:
+          - input: "import { prisma } from '../lib/prisma' // in a domain service"
+            verdict: fail
+            reason: "Domain service directly imports infrastructure (Prisma ORM)"
+          - input: "class OrderService { constructor(private repo: OrderRepository) {} }"
+            verdict: pass
+            reason: "Domain service depends on abstraction, not infrastructure"
+      action: warn
+      severity: warning
+      message: "Code may violate clean architecture principles"
+
+    - name: input-validation
+      description: "API handlers must validate input"
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if this API handler/endpoint validates its input:
+          - Request body, query params, and path params should be validated
+          - Validation should happen before any business logic
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: error
+      message: "API handler missing input validation"
+      fix_hint: "Add input validation with zod or equivalent"
+
+    # A pattern rule for comparison
+    - name: no-eval
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\beval\\s*\\("
+        file_types: [ts, js]
+      action: block
+      severity: critical
+      message: "eval() is forbidden"

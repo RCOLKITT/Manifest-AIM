@@ -127,7 +127,7 @@ export async function enforceCommand(
   // Run enforcement
   let summary: EnforceSummary;
   try {
-    summary = enforce({
+    summary = await enforce({
       manifestPath,
       targetPath: resolvedTarget,
       environment: options.environment,
@@ -153,6 +153,16 @@ export async function enforceCommand(
         formatViolation(v);
       }
     }
+  }
+
+  // Show skipped rules (e.g., no API key, missing tool)
+  const skippedEntries = Object.entries(summary.skippedRules);
+  if (skippedEntries.length > 0) {
+    console.log(chalk.yellow(`  ⚠ ${skippedEntries.length} rule${skippedEntries.length !== 1 ? "s" : ""} skipped:`));
+    for (const [ruleName, reason] of skippedEntries) {
+      console.log(chalk.dim(`    • ${ruleName}: ${reason}`));
+    }
+    console.log();
   }
 
   // Summary

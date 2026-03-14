@@ -83,4 +83,6 @@ export interface EnforceSummary {
   results: EnforceResult[];
   blocked: boolean;
   duration: number;
+  /** Rules that were skipped (e.g., no API key for semantic, tool not found). */
+  skippedRules: Record<string, string>;
 }

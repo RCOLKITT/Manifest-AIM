@@ -51,17 +51,23 @@ export function loadManifestForEnforcement(filePath: string): LoadedManifest {
 }
 
 /**
- * Filter rules to only those that are enforceable via static detection
- * (pattern or tool). Skip semantic, injected, and rules without detect config.
+ * Filter rules to only those that are enforceable via detection
+ * (pattern, tool, or semantic). Skip injected and rules without detect config.
  */
 export function getEnforceableRules(manifest: LoadedManifest): GovernanceRule[] {
   return manifest.rules.filter((rule) => {
     // Skip injected-only rules (they're context injection, not file checks)
     if (rule.enforcement === "injected") return false;
 
-    // Must have a detect config with pattern or tool type
+    // Must have a detect config with a supported type
     if (!rule.detect) return false;
-    if (rule.detect.type !== "pattern" && rule.detect.type !== "tool") return false;
+    if (
+      rule.detect.type !== "pattern" &&
+      rule.detect.type !== "tool" &&
+      rule.detect.type !== "semantic"
+    ) {
+      return false;
+    }
 
     return true;
   });

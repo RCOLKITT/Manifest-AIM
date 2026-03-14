@@ -182,8 +182,8 @@ describe("enforce: pattern detection", () => {
 // ── Integration Tests: Engine ──
 
 describe("enforce: engine", () => {
-  it("should find violations in the violations fixture", () => {
-    const summary = enforce({
+  it("should find violations in the violations fixture", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: join(ENFORCE_TARGET, "violations.ts"),
     });
@@ -200,8 +200,8 @@ describe("enforce: engine", () => {
     expect(ruleNames).toContain("no-empty-catch");
   });
 
-  it("should detect console.log when environment is production", () => {
-    const summary = enforce({
+  it("should detect console.log when environment is production", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: join(ENFORCE_TARGET, "violations.ts"),
     });
@@ -213,8 +213,8 @@ describe("enforce: engine", () => {
     expect(consoleViolations[0].action).toBe("warn");
   });
 
-  it("should skip console.log rule when environment is development", () => {
-    const summary = enforce({
+  it("should skip console.log rule when environment is development", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: join(ENFORCE_TARGET, "violations.ts"),
       environment: "development",
@@ -226,8 +226,8 @@ describe("enforce: engine", () => {
     expect(consoleViolations.length).toBe(0);
   });
 
-  it("should find no violations in the clean fixture", () => {
-    const summary = enforce({
+  it("should find no violations in the clean fixture", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: join(ENFORCE_TARGET, "clean.ts"),
     });
@@ -236,8 +236,8 @@ describe("enforce: engine", () => {
     expect(summary.blocked).toBe(false);
   });
 
-  it("should skip non-matching file types", () => {
-    const summary = enforce({
+  it("should skip non-matching file types", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: join(ENFORCE_TARGET, "not-typescript.md"),
     });
@@ -245,8 +245,8 @@ describe("enforce: engine", () => {
     expect(summary.totalViolations).toBe(0);
   });
 
-  it("should scan directories recursively", () => {
-    const summary = enforce({
+  it("should scan directories recursively", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: ENFORCE_TARGET,
     });
@@ -257,8 +257,8 @@ describe("enforce: engine", () => {
     expect(summary.filesWithViolations).toBe(1);
   });
 
-  it("should report correct action types in summary", () => {
-    const summary = enforce({
+  it("should report correct action types in summary", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: join(ENFORCE_TARGET, "violations.ts"),
     });
@@ -269,8 +269,8 @@ describe("enforce: engine", () => {
     expect(summary.byAction["warn"]).toBeGreaterThan(0);
   });
 
-  it("should report correct severity levels in summary", () => {
-    const summary = enforce({
+  it("should report correct severity levels in summary", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: join(ENFORCE_TARGET, "violations.ts"),
     });
@@ -281,8 +281,8 @@ describe("enforce: engine", () => {
     expect(summary.bySeverity["warning"]).toBeGreaterThan(0);
   });
 
-  it("should include fix hints in violations", () => {
-    const summary = enforce({
+  it("should include fix hints in violations", async () => {
+    const summary = await enforce({
       manifestPath: ENFORCE_MANIFEST,
       targetPath: join(ENFORCE_TARGET, "violations.ts"),
     });
@@ -293,15 +293,120 @@ describe("enforce: engine", () => {
     expect(withHints.length).toBeGreaterThan(0);
   });
 
-  it("should work with the enterprise-typescript reference manifest", () => {
+  it("should work with the enterprise-typescript reference manifest", async () => {
     const refManifest = join(__dirname, "..", "manifests", "reference", "enterprise-typescript.aim.yaml");
-    const summary = enforce({
+    const summary = await enforce({
       manifestPath: refManifest,
       targetPath: join(ENFORCE_TARGET, "violations.ts"),
     });
 
     // The reference manifest should also catch violations in our test fixture
     expect(summary.totalViolations).toBeGreaterThan(0);
+  });
+});
+
+// ── Integration Tests: Semantic Enforcement ──
+
+describe("enforce: semantic detection", () => {
+  const SEMANTIC_MANIFEST = join(FIXTURES, "enforce-semantic-manifest.aim.yaml");
+
+  it("should include semantic rules in enforceable rules", () => {
+    const manifest = loadManifestForEnforcement(SEMANTIC_MANIFEST);
+    const enforceable = getEnforceableRules(manifest);
+    const names = enforceable.map((r) => r.name);
+
+    expect(names).toContain("clean-architecture");
+    expect(names).toContain("input-validation");
+    expect(names).toContain("no-eval"); // pattern rule still included
+  });
+
+  it("should still enforce pattern rules alongside semantic rules", async () => {
+    const summary = await enforce({
+      manifestPath: SEMANTIC_MANIFEST,
+      targetPath: join(ENFORCE_TARGET, "violations.ts"),
+    });
+
+    // Pattern rule should still work even with semantic rules in manifest
+    const evalViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "no-eval");
+    expect(evalViolations.length).toBeGreaterThan(0);
+  });
+
+  it("should gracefully handle missing API key for semantic rules", async () => {
+    // Save and clear API key + base URL
+    const savedKey = process.env.ANTHROPIC_API_KEY;
+    const savedBase = process.env.ANTHROPIC_BASE_URL;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_BASE_URL;
+
+    // Reset the cached client so getClient() re-checks env vars
+    const semanticMod = await import("../src/enforce/semantic.js");
+    (semanticMod as Record<string, unknown>).__resetClient?.();
+
+    try {
+      const summary = await enforce({
+        manifestPath: SEMANTIC_MANIFEST,
+        targetPath: join(ENFORCE_TARGET, "dirty-architecture.ts"),
+      });
+
+      // Should not crash — semantic rules just get skipped
+      // Pattern rules should still work
+      expect(summary.files).toBe(1);
+      // Semantic rules should be listed as skipped
+      expect(Object.keys(summary.skippedRules).length).toBeGreaterThan(0);
+    } finally {
+      // Restore env vars
+      if (savedKey) process.env.ANTHROPIC_API_KEY = savedKey;
+      if (savedBase) process.env.ANTHROPIC_BASE_URL = savedBase;
+      (semanticMod as Record<string, unknown>).__resetClient?.();
+    }
+  });
+
+  // Conditional test: only runs if ANTHROPIC_API_KEY is set
+  const describeWithKey = process.env.ANTHROPIC_API_KEY ? describe : describe.skip;
+
+  describeWithKey("with API key", () => {
+    it("should detect clean architecture violations via LLM judge", async () => {
+      const summary = await enforce({
+        manifestPath: SEMANTIC_MANIFEST,
+        targetPath: join(ENFORCE_TARGET, "dirty-architecture.ts"),
+      });
+
+      // The LLM should detect that dirty-architecture.ts violates clean architecture
+      const archViolations = summary.results
+        .flatMap((r) => r.violations)
+        .filter((v) => v.rule === "clean-architecture");
+      expect(archViolations.length).toBeGreaterThan(0);
+      expect(archViolations[0].action).toBe("warn");
+      // Should include the judge's reasoning
+      expect(archViolations[0].match).toBeTruthy();
+    });
+
+    it("should detect missing input validation via LLM judge", async () => {
+      const summary = await enforce({
+        manifestPath: SEMANTIC_MANIFEST,
+        targetPath: join(ENFORCE_TARGET, "dirty-architecture.ts"),
+      });
+
+      const validationViolations = summary.results
+        .flatMap((r) => r.violations)
+        .filter((v) => v.rule === "input-validation");
+      expect(validationViolations.length).toBeGreaterThan(0);
+    });
+
+    it("should pass semantic checks on clean code", async () => {
+      const summary = await enforce({
+        manifestPath: SEMANTIC_MANIFEST,
+        targetPath: join(ENFORCE_TARGET, "clean.ts"),
+      });
+
+      // Clean code should not trigger architecture or validation warnings
+      const semanticViolations = summary.results
+        .flatMap((r) => r.violations)
+        .filter((v) => v.rule === "clean-architecture" || v.rule === "input-validation");
+      expect(semanticViolations.length).toBe(0);
+    });
   });
 });
 

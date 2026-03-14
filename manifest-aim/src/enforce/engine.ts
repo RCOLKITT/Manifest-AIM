@@ -3,7 +3,7 @@
  */
 
 import { readFileSync, statSync, readdirSync } from "node:fs";
-import { join, resolve, relative, dirname, basename } from "node:path";
+import { join, resolve, relative, dirname } from "node:path";
 import {
   loadManifestForEnforcement,
   getEnforceableRules,
@@ -11,10 +11,12 @@ import {
 } from "./loader.js";
 import { runPatternDetection } from "./pattern.js";
 import { runToolDetection } from "./tool.js";
+import { runSemanticDetection } from "./semantic.js";
 import type {
   GovernanceRule,
   PatternDetect,
   ToolDetect,
+  SemanticDetect,
   Violation,
   EnforceResult,
   EnforceSummary,
@@ -76,17 +78,26 @@ function collectFiles(targetPath: string): string[] {
 /**
  * Run enforcement for a single file against all applicable rules.
  */
-function enforceFile(
+async function enforceFile(
   filePath: string,
   rules: GovernanceRule[],
   context: EnforceContext,
   basePath: string,
   skippedTools: Map<string, string>,
-): EnforceResult {
+): Promise<EnforceResult> {
   const start = performance.now();
   const violations: Violation[] = [];
   const relPath = relative(basePath, filePath);
   let rulesChecked = 0;
+
+  // Read file content once for pattern and semantic checks
+  let fileContent: string | null = null;
+  function getContent(): string {
+    if (fileContent === null) {
+      fileContent = readFileSync(filePath, "utf-8");
+    }
+    return fileContent;
+  }
 
   for (const rule of rules) {
     // Evaluate when/unless conditions
@@ -99,12 +110,11 @@ function enforceFile(
     rulesChecked++;
 
     if (detect.type === "pattern") {
-      const content = readFileSync(filePath, "utf-8");
       const patternViolations = runPatternDetection(
         rule,
         detect as PatternDetect,
         relPath,
-        content,
+        getContent(),
       );
       violations.push(...patternViolations);
     } else if (detect.type === "tool") {
@@ -112,10 +122,21 @@ function enforceFile(
       if (result.skipped) {
         skippedTools.set(rule.name, result.skipReason ?? "Tool not available");
       } else {
-        // Remap file paths to relative
         for (const v of result.violations) {
           v.file = relPath;
         }
+        violations.push(...result.violations);
+      }
+    } else if (detect.type === "semantic") {
+      const result = await runSemanticDetection(
+        rule,
+        detect as SemanticDetect,
+        relPath,
+        getContent(),
+      );
+      if (result.skipped) {
+        skippedTools.set(rule.name, result.skipReason ?? "Semantic enforcement unavailable");
+      } else {
         violations.push(...result.violations);
       }
     }
@@ -132,7 +153,7 @@ function enforceFile(
 /**
  * Main enforcement entry point.
  */
-export function enforce(options: EnforceOptions): EnforceSummary {
+export async function enforce(options: EnforceOptions): Promise<EnforceSummary> {
   const start = performance.now();
 
   // Load manifest
@@ -143,7 +164,7 @@ export function enforce(options: EnforceOptions): EnforceSummary {
     manifest.context.environment = options.environment;
   }
 
-  // Get enforceable rules (pattern + tool only)
+  // Get enforceable rules (pattern + tool + semantic)
   const rules = getEnforceableRules(manifest);
 
   // Collect target files
@@ -160,7 +181,7 @@ export function enforce(options: EnforceOptions): EnforceSummary {
   // Run enforcement on each file
   const results: EnforceResult[] = [];
   for (const file of files) {
-    const result = enforceFile(file, rules, manifest.context, basePath, skippedTools);
+    const result = await enforceFile(file, rules, manifest.context, basePath, skippedTools);
     if (result.violations.length > 0 || result.rulesChecked > 0) {
       results.push(result);
     }
@@ -187,6 +208,7 @@ export function enforce(options: EnforceOptions): EnforceSummary {
     results,
     blocked,
     duration: performance.now() - start,
+    skippedRules: Object.fromEntries(skippedTools),
   };
 }
 
