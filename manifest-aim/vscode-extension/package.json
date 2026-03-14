@@ -1,0 +1,137 @@
+{
+  "name": "manifest-aim",
+  "displayName": "Manifest AIM",
+  "description": "IntelliSense, validation, and tooling for AIM (Agent Instruction Manifest) files",
+  "version": "0.1.0",
+  "publisher": "vaspera",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/manifest-aim/manifest-aim"
+  },
+  "icon": "images/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters"
+  ],
+  "keywords": [
+    "aim",
+    "manifest",
+    "ai",
+    "agent",
+    "governance",
+    "yaml"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/aim.yaml",
+    "workspaceContains:**/*.aim.yaml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "aim",
+        "aliases": ["AIM Manifest", "aim"],
+        "extensions": [".aim.yaml", ".aim.yml"],
+        "filenames": ["aim.yaml", "aim.yml"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "aim",
+        "scopeName": "source.aim",
+        "path": "./syntaxes/aim.tmLanguage.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": ["aim.yaml", "aim.yml", "*.aim.yaml", "*.aim.yml"],
+        "url": "./schemas/aim-schema.json"
+      }
+    ],
+    "yamlValidation": [
+      {
+        "fileMatch": ["aim.yaml", "aim.yml", "*.aim.yaml", "*.aim.yml"],
+        "url": "./schemas/aim-schema.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "manifest-aim.validate",
+        "title": "Validate AIM Manifest",
+        "category": "Manifest AIM"
+      },
+      {
+        "command": "manifest-aim.enforce",
+        "title": "Run AIM Enforcement",
+        "category": "Manifest AIM"
+      },
+      {
+        "command": "manifest-aim.wrap",
+        "title": "Generate Platform Context (wrap)",
+        "category": "Manifest AIM"
+      },
+      {
+        "command": "manifest-aim.init",
+        "title": "Initialize AIM Manifest",
+        "category": "Manifest AIM"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceFilename =~ /aim\\.ya?ml$/",
+          "command": "manifest-aim.validate",
+          "group": "manifest-aim"
+        },
+        {
+          "when": "resourceFilename =~ /aim\\.ya?ml$/",
+          "command": "manifest-aim.enforce",
+          "group": "manifest-aim"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Manifest AIM",
+      "properties": {
+        "manifest-aim.validateOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Validate AIM manifests on save"
+        },
+        "manifest-aim.showInlineHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline hints for rules and capabilities"
+        },
+        "manifest-aim.defaultPlatform": {
+          "type": "string",
+          "enum": ["claude-code", "cursor", "windsurf", "generic"],
+          "default": "claude-code",
+          "description": "Default platform for wrap command"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.22.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

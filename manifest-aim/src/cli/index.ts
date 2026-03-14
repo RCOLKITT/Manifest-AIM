@@ -14,6 +14,15 @@ import { publishCommand } from "./commands/publish.js";
 import { installCommand } from "./commands/install.js";
 import { searchCommand } from "./commands/search.js";
 import { generateCommand } from "./commands/generate.js";
+import { loginCommand } from "./commands/login.js";
+import { logoutCommand } from "./commands/logout.js";
+import { whoamiCommand } from "./commands/whoami.js";
+import { hooksCommand } from "./commands/hooks.js";
+import { auditCommand } from "./commands/audit.js";
+import { approvalCommand } from "./commands/approval.js";
+import { teamCommand } from "./commands/team.js";
+import { serveCommand } from "./commands/serve.js";
+import { mcpCommand, mcpConfigCommand } from "./commands/mcp.js";
 
 const program = new Command();
 
@@ -62,10 +71,11 @@ program
 program
   .command("enforce")
   .description("Run enforcement checks against files")
-  .argument("<path>", "File or directory to check")
+  .argument("[path]", "File or directory to check", ".")
   .option("-m, --manifest <file>", "Path to manifest file", "aim.yaml")
   .option("--report", "Output full governance report")
   .option("-e, --environment <env>", "Override environment context (e.g., production)")
+  .option("--staged", "Only check git-staged files (for pre-commit hooks)")
   .action(enforceCommand);
 
 program
@@ -76,6 +86,8 @@ program
   .option("-o, --output <dir>", "Output directory for generated file")
   .option("-e, --environment <env>", "Override environment context")
   .option("--dry-run", "Print to stdout instead of writing files")
+  .option("-w, --watch", "Watch manifest for changes and regenerate")
+  .option("--all", "Generate for all supported platforms at once")
   .action(wrapCommand);
 
 program
@@ -124,5 +136,81 @@ program
   .option("--domain <domain>", "Filter by domain")
   .option("--limit <n>", "Max results", "20")
   .action(searchCommand);
+
+program
+  .command("login")
+  .description("Authenticate with the Manifest Registry")
+  .action(loginCommand);
+
+program
+  .command("logout")
+  .description("Sign out of the Manifest Registry")
+  .action(logoutCommand);
+
+program
+  .command("whoami")
+  .description("Show current authentication status")
+  .action(whoamiCommand);
+
+program
+  .command("hooks")
+  .description("Manage git hooks for real-time AIM enforcement")
+  .argument("<action>", "Action: install, uninstall, or status")
+  .option("--force", "Overwrite existing hooks")
+  .option("--type <hooks>", "Hook types to install (comma-separated)", "pre-commit")
+  .action(hooksCommand);
+
+// ────────────────────────────────────────────────────────────────────────────
+// Enterprise Commands
+// ────────────────────────────────────────────────────────────────────────────
+
+program
+  .command("audit")
+  .description("View and export audit logs for governance events")
+  .argument("[subcommand]", "Subcommand: list, summary, export", "list")
+  .option("--days <n>", "Filter to last N days", "7")
+  .option("--type <type>", "Filter by event type")
+  .option("--severity <s>", "Filter by severity")
+  .option("--format <fmt>", "Output format: json, csv, table", "table")
+  .option("-o, --output <path>", "Export to file")
+  .option("--limit <n>", "Limit results", "50")
+  .action(auditCommand);
+
+program
+  .command("approval")
+  .description("Manage approval requests for require_approval rules")
+  .argument("[subcommand]", "Subcommand: list, show, approve, reject, cancel")
+  .argument("[args...]", "Additional arguments")
+  .option("--policy <name>", "Filter by approval policy")
+  .option("--status <s>", "Filter by status")
+  .option("--limit <n>", "Limit results", "20")
+  .action((subcommand, args, options) => approvalCommand(subcommand, args, options));
+
+program
+  .command("team")
+  .description("Manage teams and RBAC permissions")
+  .argument("[subcommand]", "Subcommand: list, show, create, add-member, remove-member, roles")
+  .argument("[args...]", "Additional arguments")
+  .option("--role <role>", "Role to assign")
+  .action((subcommand, args, options) => teamCommand(subcommand, args, options));
+
+program
+  .command("serve")
+  .description("Start the AIM API server for Studio and other clients")
+  .option("-p, --port <port>", "Port to listen on", "4000")
+  .action((options) => serveCommand({ port: parseInt(options.port, 10) }));
+
+program
+  .command("mcp")
+  .description("Start the AIM MCP server for native agent integration")
+  .option("-m, --manifest <file>", "Path to manifest file", "aim.yaml")
+  .option("--config", "Show MCP configuration instructions")
+  .action((options) => {
+    if (options.config) {
+      mcpConfigCommand();
+    } else {
+      mcpCommand({ manifest: options.manifest });
+    }
+  });
 
 program.parse();

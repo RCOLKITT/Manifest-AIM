@@ -1,0 +1,244 @@
+aim: "1.0"
+
+metadata:
+  name: cicd-pipelines
+  version: 1.0.0
+  description: "CI/CD pipeline design and best practices"
+  tags: [cicd, github-actions, deployment, automation, devops]
+  license: MIT
+
+context:
+  persona: "DevOps engineer designing CI/CD pipelines"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Security ──
+
+    - name: no-secrets-in-logs
+      description: "Don't log secrets"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "echo.*\\$\\{\\{\\s*secrets\\."
+        file_types: [yaml, yml]
+      action: block
+      severity: critical
+      message: "Secrets may be logged in output."
+      fix_hint: "Use masking and avoid echoing secrets"
+
+    - name: pin-action-versions
+      description: "Pin GitHub Action versions"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "uses:\\s+[^@]+@(main|master|latest)"
+        file_types: [yaml, yml]
+      action: warn
+      severity: warning
+      message: "Pin actions to specific versions."
+      fix_hint: "Use commit SHA or version tag"
+
+    - name: minimal-permissions
+      description: "Use minimal GITHUB_TOKEN permissions"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check permissions:
+          - Use permissions: block explicitly
+          - Request minimal permissions needed
+          - Avoid write-all
+          - Use read for checkout-only jobs
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Restrict workflow permissions."
+
+    # ── Best Practices ──
+
+    - name: fail-fast
+      description: "Fail fast on critical errors"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check failure handling:
+          - Lint/test failures should fail pipeline
+          - Use continue-on-error sparingly
+          - Security scans should block on critical
+          - Don't deploy on test failure
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Ensure pipeline fails on errors."
+
+    - name: cache-dependencies
+      description: "Cache dependencies for speed"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check caching:
+          - Cache npm/yarn/pnpm dependencies
+          - Cache build artifacts
+          - Use hash-based cache keys
+          - Consider restore-keys fallback
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider caching dependencies."
+
+    - name: parallel-jobs
+      description: "Run independent jobs in parallel"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check parallelization:
+          - Lint, test, build can run in parallel
+          - Use matrix for multiple versions
+          - Consider sharding for long tests
+          - Deploy only after all checks pass
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider parallelizing jobs."
+
+    # ── Deployment ──
+
+    - name: environment-protection
+      description: "Production needs protection rules"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check deployment protection:
+          - Production requires approval
+          - Use environment protection rules
+          - Deploy from specific branches only
+          - Consider deployment windows
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Add production protection rules."
+
+    - name: rollback-plan
+      description: "Have a rollback strategy"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Deployment safety:
+        - Keep previous deployment artifacts
+        - Have quick rollback mechanism
+        - Consider blue-green or canary
+        - Test rollback procedure
+        - Monitor after deployment
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_types: false
+
+knowledge:
+  - name: github-actions
+    trigger: "writing CI/CD pipelines or workflows"
+    priority: 100
+    content: |
+      ## GitHub Actions Patterns
+
+      ### Complete Workflow
+      ```yaml
+      name: CI/CD
+
+      on:
+        push:
+          branches: [main]
+        pull_request:
+          branches: [main]
+
+      permissions:
+        contents: read
+
+      jobs:
+        lint:
+          runs-on: ubuntu-latest
+          steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                node-version: '20'
+                cache: 'npm'
+            - run: npm ci
+            - run: npm run lint
+
+        test:
+          runs-on: ubuntu-latest
+          strategy:
+            matrix:
+              node: [18, 20]
+          steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                node-version: ${{ matrix.node }}
+                cache: 'npm'
+            - run: npm ci
+            - run: npm test
+
+        deploy:
+          needs: [lint, test]
+          if: github.ref == 'refs/heads/main'
+          runs-on: ubuntu-latest
+          environment: production
+          steps:
+            - uses: actions/checkout@v4
+            - run: ./deploy.sh
+      ```
+
+      ### Caching
+      ```yaml
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-
+      ```
+
+  - name: deployment-strategies
+    trigger: "deploying applications"
+    priority: 90
+    content: |
+      ## Deployment Strategies
+
+      ### Blue-Green
+      - Run two identical environments
+      - Deploy to inactive environment
+      - Switch traffic after verification
+      - Keep previous for quick rollback
+
+      ### Canary
+      - Deploy to small percentage first
+      - Monitor for errors/degradation
+      - Gradually increase traffic
+      - Full rollback on issues
+
+      ### Rolling
+      - Update instances gradually
+      - Maintain capacity during deploy
+      - Health checks before proceeding
+      - Auto-rollback on failures

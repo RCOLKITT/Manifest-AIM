@@ -1,0 +1,123 @@
+# Reusable workflow for AIM enforcement
+# Use this in other repositories by calling it from your workflow
+
+name: AIM Enforcement
+
+on:
+  workflow_call:
+    inputs:
+      manifest:
+        description: 'Path to the AIM manifest file'
+        type: string
+        default: 'aim.yaml'
+      path:
+        description: 'Path to check (file or directory)'
+        type: string
+        default: '.'
+      environment:
+        description: 'Environment context (e.g., production, staging)'
+        type: string
+        required: false
+      fail-on-warnings:
+        description: 'Fail if warnings are found'
+        type: boolean
+        default: false
+      node-version:
+        description: 'Node.js version to use'
+        type: string
+        default: '20'
+    secrets:
+      ANTHROPIC_API_KEY:
+        description: 'Anthropic API key for semantic enforcement'
+        required: false
+      OPENAI_API_KEY:
+        description: 'OpenAI API key for semantic enforcement'
+        required: false
+    outputs:
+      violations:
+        description: 'Number of violations found'
+        value: ${{ jobs.enforce.outputs.violations }}
+      blocked:
+        description: 'Number of blocking violations'
+        value: ${{ jobs.enforce.outputs.blocked }}
+      warnings:
+        description: 'Number of warnings'
+        value: ${{ jobs.enforce.outputs.warnings }}
+      passed:
+        description: 'Whether all checks passed'
+        value: ${{ jobs.enforce.outputs.passed }}
+
+jobs:
+  enforce:
+    name: Run AIM Enforcement
+    runs-on: ubuntu-latest
+    outputs:
+      violations: ${{ steps.aim.outputs.violations }}
+      blocked: ${{ steps.aim.outputs.blocked }}
+      warnings: ${{ steps.aim.outputs.warnings }}
+      passed: ${{ steps.aim.outputs.passed }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Install Manifest AIM CLI
+        run: npm install -g manifest-aim@latest
+
+      - name: Validate AIM manifest
+        run: manifest validate ${{ inputs.manifest }}
+
+      - name: Run AIM Enforcement
+        id: aim
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set +e
+
+          # Build command
+          CMD="manifest enforce ${{ inputs.path }} --manifest ${{ inputs.manifest }}"
+
+          if [ -n "${{ inputs.environment }}" ]; then
+            CMD="$CMD --environment ${{ inputs.environment }}"
+          fi
+
+          # Run enforcement
+          OUTPUT=$(eval $CMD 2>&1)
+          EXIT_CODE=$?
+
+          echo "$OUTPUT"
+
+          # Parse results
+          BLOCKED=$(echo "$OUTPUT" | grep -oP '(?<=✗ )\d+(?= blocking)' || echo "0")
+          WARNINGS=$(echo "$OUTPUT" | grep -oP '(?<=⚠ )\d+(?= warning)' || echo "0")
+          VIOLATIONS=$((BLOCKED + WARNINGS))
+
+          # Set outputs
+          echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+          echo "blocked=$BLOCKED" >> $GITHUB_OUTPUT
+          echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+
+          # Determine pass/fail
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          elif [ "${{ inputs.fail-on-warnings }}" == "true" ] && [ "$WARNINGS" -gt 0 ]; then
+            echo "passed=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "passed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload governance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aim-governance-report
+          path: .aim/reports/
+          if-no-files-found: ignore

@@ -1,0 +1,231 @@
+aim: "1.0"
+
+metadata:
+  name: vue-typescript
+  version: 1.0.0
+  description: "Vue 3 with TypeScript and Composition API best practices"
+  tags: [vue, typescript, frontend, composition-api, pinia]
+  license: MIT
+
+context:
+  persona: "Vue developer building production applications"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Composition API ──
+
+    - name: use-composition-api
+      description: "Prefer Composition API with script setup"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check Vue patterns:
+          - Use <script setup> for new components
+          - Use composables for reusable logic
+          - Prefer ref/reactive over Options API data
+          - Use computed for derived state
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Consider using Composition API."
+
+    - name: type-props-emits
+      description: "Props and emits should be typed"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check type safety:
+          - Use defineProps with type parameter
+          - Use defineEmits with type parameter
+          - Avoid runtime props validation only
+          - Use PropType for complex types
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Props and emits should have TypeScript types."
+
+    # ── Reactivity ──
+
+    - name: avoid-reactivity-loss
+      description: "Don't lose reactivity"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Common reactivity mistakes:
+          - Don't destructure reactive objects
+          - Use toRefs for destructuring
+          - Don't reassign reactive variables
+          - Use .value for refs in script
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Check for reactivity loss."
+
+    - name: use-shallow-refs
+      description: "Use shallowRef for large objects"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check ref usage:
+          - Use shallowRef for large, non-reactive data
+          - Use shallowReactive when deep reactivity not needed
+          - Consider performance of deep reactivity
+        model: fast
+        threshold: 0.7
+      action: warn
+      severity: info
+      message: "Consider shallowRef for large objects."
+
+    # ── State Management ──
+
+    - name: use-pinia-correctly
+      description: "Follow Pinia best practices"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check Pinia usage:
+          - Use Setup Store syntax for complex stores
+          - Keep stores focused and small
+          - Use getters for derived state
+          - Actions for async operations
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Review Pinia store structure."
+
+    # ── Performance ──
+
+    - name: lazy-load-routes
+      description: "Lazy load route components"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check code splitting:
+          - Use defineAsyncComponent for large components
+          - Lazy load routes: () => import('./Page.vue')
+          - Consider suspense for async loading
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider lazy loading."
+
+    - name: use-v-memo
+      description: "Optimize list rendering"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check list performance:
+          - Use :key with stable unique IDs
+          - Consider v-memo for expensive list items
+          - Use virtual scrolling for long lists
+        model: fast
+        threshold: 0.7
+      action: warn
+      severity: info
+      message: "Consider list rendering optimization."
+
+  quality_gates:
+    code:
+      require_types: strict
+      max_file_length: 300
+
+knowledge:
+  - name: vue-patterns
+    trigger: "building components or managing state"
+    priority: 100
+    content: |
+      ## Vue 3 Patterns
+
+      ### Typed Props & Emits
+      ```vue
+      <script setup lang="ts">
+      interface Props {
+        title: string;
+        count?: number;
+      }
+
+      const props = withDefaults(defineProps<Props>(), {
+        count: 0
+      });
+
+      const emit = defineEmits<{
+        update: [value: number];
+        close: [];
+      }>();
+      </script>
+      ```
+
+      ### Composables
+      ```typescript
+      // composables/useCounter.ts
+      export function useCounter(initial = 0) {
+        const count = ref(initial);
+
+        const increment = () => count.value++;
+        const decrement = () => count.value--;
+        const reset = () => count.value = initial;
+
+        return { count: readonly(count), increment, decrement, reset };
+      }
+      ```
+
+      ### Provide/Inject with Types
+      ```typescript
+      // Type-safe injection key
+      const UserKey: InjectionKey<Ref<User>> = Symbol('user');
+
+      // In parent
+      provide(UserKey, userRef);
+
+      // In child
+      const user = inject(UserKey);
+      ```
+
+  - name: vue-pinia
+    trigger: "setting up state management"
+    priority: 90
+    content: |
+      ## Pinia Store Patterns
+
+      ### Setup Store
+      ```typescript
+      export const useCartStore = defineStore('cart', () => {
+        const items = ref<CartItem[]>([]);
+
+        const total = computed(() =>
+          items.value.reduce((sum, item) => sum + item.price, 0)
+        );
+
+        function addItem(product: Product) {
+          items.value.push({ ...product, quantity: 1 });
+        }
+
+        async function checkout() {
+          await api.checkout(items.value);
+          items.value = [];
+        }
+
+        return { items, total, addItem, checkout };
+      });
+      ```

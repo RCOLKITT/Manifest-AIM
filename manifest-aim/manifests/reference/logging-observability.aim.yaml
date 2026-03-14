@@ -1,0 +1,240 @@
+aim: "1.0"
+
+metadata:
+  name: logging-observability
+  version: 1.0.0
+  description: "Logging, monitoring, and observability best practices"
+  tags: [logging, monitoring, observability, tracing, metrics]
+  license: MIT
+
+context:
+  persona: "Developer implementing observability"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Logging Security ──
+
+    - name: no-sensitive-data-logs
+      description: "Don't log sensitive data"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check log content:
+          - Don't log passwords or secrets
+          - Don't log full credit card numbers
+          - Don't log authentication tokens
+          - Mask PII in logs
+        model: fast
+        threshold: 0.9
+      action: warn
+      severity: critical
+      message: "Sensitive data may be logged."
+
+    - name: no-stack-traces-to-users
+      description: "Don't expose stack traces"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check error responses:
+          - Log full errors server-side
+          - Return generic messages to users
+          - Include error IDs for correlation
+          - Don't expose internal paths/details
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Stack traces should not reach users."
+
+    # ── Structured Logging ──
+
+    - name: structured-logs
+      description: "Use structured logging"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check log format:
+          - Use JSON or structured format
+          - Include timestamp, level, message
+          - Add context (request_id, user_id)
+          - Use consistent field names
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Use structured logging."
+
+    - name: appropriate-log-levels
+      description: "Use appropriate log levels"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check log levels:
+          - ERROR: actual errors requiring attention
+          - WARN: unusual but handled situations
+          - INFO: significant business events
+          - DEBUG: development troubleshooting
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Review log level usage."
+
+    # ── Tracing ──
+
+    - name: correlation-ids
+      description: "Use correlation IDs"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check tracing:
+          - Generate request IDs at entry point
+          - Propagate through all services
+          - Include in logs and errors
+          - Return to client for support
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Implement correlation IDs."
+
+    - name: distributed-tracing
+      description: "Implement distributed tracing"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Distributed tracing:
+        - Use OpenTelemetry for instrumentation
+        - Propagate trace context across services
+        - Create spans for significant operations
+        - Add relevant attributes to spans
+        - Export to tracing backend (Jaeger, etc.)
+      action: log
+      severity: info
+
+    # ── Metrics ──
+
+    - name: meaningful-metrics
+      description: "Track meaningful metrics"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Metrics best practices:
+        - Request rate, errors, duration (RED)
+        - Resource utilization (USE)
+        - Business metrics (conversion, etc.)
+        - Use appropriate metric types
+        - Set up alerts on anomalies
+      action: log
+      severity: info
+
+    # ── Health Checks ──
+
+    - name: health-endpoints
+      description: "Implement health check endpoints"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check health endpoints:
+          - /health or /healthz for liveness
+          - /ready for readiness
+          - Check critical dependencies
+          - Return appropriate status codes
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Implement health check endpoints."
+
+  quality_gates:
+    code:
+      require_types: false
+
+knowledge:
+  - name: logging-patterns
+    trigger: "implementing logging or error handling"
+    priority: 100
+    content: |
+      ## Logging Patterns
+
+      ### Structured Logger
+      ```typescript
+      import pino from 'pino';
+
+      const logger = pino({
+        level: process.env.LOG_LEVEL || 'info',
+        formatters: {
+          level: (label) => ({ level: label })
+        }
+      });
+
+      // Usage
+      logger.info({ userId, action: 'login' }, 'User logged in');
+      logger.error({ err, requestId }, 'Request failed');
+      ```
+
+      ### Request Context
+      ```typescript
+      import { AsyncLocalStorage } from 'async_hooks';
+
+      const requestContext = new AsyncLocalStorage<{ requestId: string }>();
+
+      function logWithContext(level: string, message: string, data = {}) {
+        const ctx = requestContext.getStore();
+        logger[level]({
+          requestId: ctx?.requestId,
+          ...data
+        }, message);
+      }
+
+      // Middleware
+      app.use((req, res, next) => {
+        const requestId = req.headers['x-request-id'] || uuid();
+        requestContext.run({ requestId }, () => next());
+      });
+      ```
+
+  - name: metrics-patterns
+    trigger: "implementing metrics or monitoring"
+    priority: 90
+    content: |
+      ## Metrics Patterns
+
+      ### OpenTelemetry Setup
+      ```typescript
+      import { MeterProvider, metrics } from '@opentelemetry/api';
+
+      const meter = metrics.getMeter('my-service');
+
+      // Counter
+      const requestCounter = meter.createCounter('http_requests_total');
+      requestCounter.add(1, { method: 'GET', path: '/api/users' });
+
+      // Histogram
+      const requestDuration = meter.createHistogram('http_request_duration_ms');
+      requestDuration.record(42, { method: 'GET', status: '200' });
+      ```
+
+      ### RED Metrics
+      - **R**ate: requests per second
+      - **E**rrors: error rate/count
+      - **D**uration: latency percentiles (p50, p95, p99)
+
+      ### USE Metrics
+      - **U**tilization: resource usage %
+      - **S**aturation: queue depth
+      - **E**rrors: error count

@@ -1,0 +1,287 @@
+aim: "1.0"
+
+metadata:
+  name: typescript-library
+  version: 1.0.0
+  description: "TypeScript library/package authoring best practices"
+  tags: [typescript, library, npm, package, api-design]
+  license: MIT
+
+context:
+  persona: "TypeScript developer creating reusable libraries"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Type Safety ──
+
+    - name: no-any-exports
+      description: "Public API should not expose 'any' types"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "export.*:\\s*any\\b"
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "Public API should not use 'any' type."
+      fix_hint: "Use proper types, generics, or 'unknown'"
+
+    - name: strict-mode
+      description: "Enable TypeScript strict mode"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\"strict\":\\s*false|noImplicitAny.*false"
+        file_types: [json]
+      action: warn
+      severity: warning
+      message: "Enable strict mode in tsconfig.json."
+
+    - name: explicit-return-types
+      description: "Exported functions should have explicit return types"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if exported functions have explicit return types:
+          - Public functions should declare return type
+          - Async functions should use Promise<T>
+          - Callbacks should have typed parameters
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider adding explicit return types to public API."
+
+    # ── API Design ──
+
+    - name: stable-public-api
+      description: "Public API should be intentional"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check API design:
+          - Exports should be intentional (use index.ts barrel)
+          - Internal utilities should not be exported
+          - Breaking changes should be documented
+          - Consider backwards compatibility
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Review what's being exported as public API."
+
+    - name: avoid-barrel-bloat
+      description: "Avoid re-exporting everything"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Barrel file (index.ts) best practices:
+        - Only export the public API
+        - Don't export internal utilities
+        - Consider tree-shaking implications
+        - Large re-exports can hurt build times
+      action: log
+      severity: info
+
+    # ── Documentation ──
+
+    - name: document-public-api
+      description: "Public API should have JSDoc documentation"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check documentation:
+          - Exported functions should have JSDoc comments
+          - Include @param and @returns
+          - Include @example for non-obvious usage
+          - Document exceptions/errors thrown
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Public API should be documented."
+      fix_hint: "Add JSDoc comments to exported functions"
+
+    # ── Error Handling ──
+
+    - name: typed-errors
+      description: "Use typed errors for library errors"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check error handling:
+          - Define custom error classes for library errors
+          - Errors should have meaningful types
+          - Document what errors can be thrown
+          - Consider Result/Either pattern for expected failures
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider using typed custom errors."
+
+    # ── Package Config ──
+
+    - name: proper-package-json
+      description: "package.json should be properly configured"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Library package.json requirements:
+        - "main": CJS entry point
+        - "module": ESM entry point
+        - "types": Type declarations
+        - "exports": Modern entry points
+        - "sideEffects": false (if applicable)
+        - "files": Only include necessary files
+        - "peerDependencies": For framework dependencies
+      action: log
+      severity: info
+
+    # ── Testing ──
+
+    - name: test-public-api
+      description: "Public API should have tests"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Library testing requirements:
+        - Test all exported functions
+        - Test edge cases and error conditions
+        - Test type inference (using tsd or similar)
+        - Test tree-shaking works correctly
+        - Consider property-based testing for algorithms
+      action: log
+      severity: info
+
+    # ── Dependencies ──
+
+    - name: minimize-dependencies
+      description: "Minimize runtime dependencies"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check dependency usage:
+          - Avoid large dependencies for small functionality
+          - Consider if functionality can be implemented inline
+          - Check dependency bundle size
+          - Prefer peerDependencies for framework deps
+        model: fast
+        threshold: 0.7
+      action: warn
+      severity: info
+      message: "Review if all dependencies are necessary."
+
+  quality_gates:
+    code:
+      require_types: strict
+      max_complexity: 15
+      max_file_length: 400
+
+knowledge:
+  - name: library-patterns
+    trigger: "designing API, creating functions, or structuring library"
+    priority: 100
+    content: |
+      ## TypeScript Library Patterns
+
+      ### API Design
+      - Accept interfaces, return concrete types
+      - Use overloads for flexible APIs
+      - Prefer options objects over many parameters
+      - Make impossible states impossible with types
+
+      ### Error Handling
+      ```typescript
+      // Custom error class
+      export class LibraryError extends Error {
+        constructor(
+          message: string,
+          public code: string,
+          public cause?: Error
+        ) {
+          super(message);
+          this.name = 'LibraryError';
+        }
+      }
+
+      // Result pattern
+      type Result<T, E = Error> =
+        | { ok: true; value: T }
+        | { ok: false; error: E };
+      ```
+
+      ### Options Pattern
+      ```typescript
+      interface Options {
+        timeout?: number;
+        retries?: number;
+      }
+
+      const defaults: Required<Options> = {
+        timeout: 5000,
+        retries: 3,
+      };
+
+      function doSomething(options?: Options) {
+        const opts = { ...defaults, ...options };
+      }
+      ```
+
+  - name: package-setup
+    trigger: "setting up package.json or build configuration"
+    priority: 90
+    content: |
+      ## Library Package Setup
+
+      ### package.json
+      ```json
+      {
+        "name": "my-library",
+        "version": "1.0.0",
+        "main": "./dist/index.cjs",
+        "module": "./dist/index.js",
+        "types": "./dist/index.d.ts",
+        "exports": {
+          ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+          }
+        },
+        "files": ["dist"],
+        "sideEffects": false,
+        "peerDependencies": {
+          "react": ">=18"
+        }
+      }
+      ```
+
+      ### tsconfig.json (library)
+      ```json
+      {
+        "compilerOptions": {
+          "strict": true,
+          "declaration": true,
+          "declarationMap": true,
+          "sourceMap": true,
+          "target": "ES2020",
+          "module": "ESNext",
+          "moduleResolution": "bundler"
+        }
+      }
+      ```

@@ -1,0 +1,104 @@
+name: 'AIM Enforce'
+description: 'Run Manifest AIM governance checks on your codebase'
+author: 'Vaspera Capital'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  manifest:
+    description: 'Path to the AIM manifest file'
+    required: false
+    default: 'aim.yaml'
+  path:
+    description: 'Path to check (file or directory)'
+    required: false
+    default: '.'
+  environment:
+    description: 'Environment context (e.g., production, staging)'
+    required: false
+  fail-on-warnings:
+    description: 'Fail the action if warnings are found'
+    required: false
+    default: 'false'
+  report:
+    description: 'Generate a detailed governance report'
+    required: false
+    default: 'false'
+  anthropic-api-key:
+    description: 'Anthropic API key for semantic enforcement (optional)'
+    required: false
+  openai-api-key:
+    description: 'OpenAI API key for semantic enforcement (optional)'
+    required: false
+
+outputs:
+  violations:
+    description: 'Number of violations found'
+  blocked:
+    description: 'Number of blocking violations'
+  warnings:
+    description: 'Number of warnings'
+  passed:
+    description: 'Whether all checks passed (true/false)'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Manifest AIM CLI
+      shell: bash
+      run: npm install -g manifest-aim@latest
+
+    - name: Run AIM Enforcement
+      id: enforce
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+      run: |
+        set +e
+
+        # Build command
+        CMD="manifest enforce ${{ inputs.path }} --manifest ${{ inputs.manifest }}"
+
+        if [ "${{ inputs.environment }}" != "" ]; then
+          CMD="$CMD --environment ${{ inputs.environment }}"
+        fi
+
+        if [ "${{ inputs.report }}" == "true" ]; then
+          CMD="$CMD --report"
+        fi
+
+        # Run enforcement and capture output
+        OUTPUT=$(eval $CMD 2>&1)
+        EXIT_CODE=$?
+
+        echo "$OUTPUT"
+
+        # Parse results from output
+        BLOCKED=$(echo "$OUTPUT" | grep -oP '(?<=✗ )\d+(?= blocking)' || echo "0")
+        WARNINGS=$(echo "$OUTPUT" | grep -oP '(?<=⚠ )\d+(?= warning)' || echo "0")
+        VIOLATIONS=$((BLOCKED + WARNINGS))
+
+        # Set outputs
+        echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+        echo "blocked=$BLOCKED" >> $GITHUB_OUTPUT
+        echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+
+        # Determine pass/fail
+        if [ "$EXIT_CODE" -ne 0 ]; then
+          echo "passed=false" >> $GITHUB_OUTPUT
+          exit 1
+        elif [ "${{ inputs.fail-on-warnings }}" == "true" ] && [ "$WARNINGS" -gt 0 ]; then
+          echo "passed=false" >> $GITHUB_OUTPUT
+          exit 1
+        else
+          echo "passed=true" >> $GITHUB_OUTPUT
+          exit 0
+        fi

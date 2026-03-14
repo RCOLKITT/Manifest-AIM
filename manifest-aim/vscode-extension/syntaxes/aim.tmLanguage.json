@@ -1,0 +1,115 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "AIM Manifest",
+  "scopeName": "source.aim",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#aim-keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#constants" },
+    { "include": "#keys" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.aim",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "aim-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.aim",
+          "match": "\\b(aim|metadata|context|governance|capabilities|knowledge|dependencies|inherits|composition|lifecycle|runtime)\\b(?=\\s*:)"
+        },
+        {
+          "name": "keyword.other.aim.governance",
+          "match": "\\b(rules|transforms|quality_gates|guardrails|audit)\\b(?=\\s*:)"
+        },
+        {
+          "name": "keyword.other.aim.rule",
+          "match": "\\b(name|description|enforcement|detect|action|severity|message|fix_hint|when|unless|category)\\b(?=\\s*:)"
+        },
+        {
+          "name": "constant.language.aim.action",
+          "match": "\\b(block|warn|transform|log|retry|require_approval|escalate)\\b"
+        },
+        {
+          "name": "constant.language.aim.severity",
+          "match": "\\b(critical|error|warning|info)\\b"
+        },
+        {
+          "name": "constant.language.aim.enforcement",
+          "match": "\\b(static|semantic|injected|composite)\\b"
+        },
+        {
+          "name": "constant.language.aim.detect-type",
+          "match": "\\b(pattern|tool|semantic|composite)\\b(?=\\s*$)"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.aim",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.aim",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.aim",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.aim",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.unquoted.block.aim",
+          "begin": "\\|",
+          "end": "^(?=\\S)",
+          "patterns": []
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.aim",
+          "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.aim",
+          "match": "\\b(true|false|yes|no|on|off)\\b"
+        },
+        {
+          "name": "constant.language.null.aim",
+          "match": "\\b(null|~)\\b"
+        }
+      ]
+    },
+    "keys": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.aim",
+          "match": "^\\s*[a-zA-Z_][a-zA-Z0-9_-]*(?=\\s*:)"
+        }
+      ]
+    }
+  }
+}

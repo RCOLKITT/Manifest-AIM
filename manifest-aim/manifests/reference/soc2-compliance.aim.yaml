@@ -1,0 +1,166 @@
+aim: "1.0"
+
+metadata:
+  name: soc2-compliance
+  version: 1.0.0
+  description: "SOC2 Type II compliance enforcement for SaaS applications"
+  tags: [compliance, soc2, security, enterprise, saas]
+  license: MIT
+
+context:
+  persona: "Security-conscious engineer building SOC2-compliant SaaS applications"
+  domain: software-engineering
+  environment: production
+  compliance: [soc2]
+
+governance:
+  rules:
+    # ── Access Control (CC6.1) ──
+
+    - name: require-authentication
+      description: "All API endpoints must have authentication"
+      category: compliance
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if this API endpoint or route handler has authentication:
+          - Must use auth middleware or decorator
+          - Must validate user session/token before processing
+          - Public endpoints must be explicitly marked as such
+        model: fast
+        threshold: 0.85
+      action: block
+      severity: critical
+      message: "API endpoint missing authentication. SOC2 CC6.1 requires access control."
+      fix_hint: "Add authentication middleware or mark as explicitly public with justification"
+
+    - name: no-hardcoded-credentials
+      description: "No hardcoded passwords, keys, or secrets"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(password|secret|api_key|private_key|token|credential)\\s*[=:]\\s*['\"][^'\"]{8,}['\"]"
+      action: block
+      severity: critical
+      message: "Hardcoded credentials detected. SOC2 CC6.1 violation."
+      fix_hint: "Use environment variables or a secrets manager (AWS Secrets Manager, Vault)"
+
+    # ── Encryption (CC6.7) ──
+
+    - name: require-https
+      description: "All external connections must use TLS/HTTPS"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "http://(?!localhost|127\\.0\\.0\\.1)"
+      action: block
+      severity: critical
+      message: "Unencrypted HTTP connection detected. SOC2 CC6.7 requires encryption in transit."
+      fix_hint: "Use https:// for all external connections"
+
+    - name: sensitive-data-encryption
+      description: "Sensitive data must be encrypted at rest"
+      category: compliance
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if sensitive data (PII, credentials, financial) is being stored:
+          - Must use encryption for database fields containing sensitive data
+          - Must use encrypted file storage for sensitive files
+          - Must not store sensitive data in plain text logs
+        model: standard
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Sensitive data may not be encrypted. Review for SOC2 CC6.7 compliance."
+
+    # ── Logging & Monitoring (CC7.2) ──
+
+    - name: require-audit-logging
+      description: "Security-relevant actions must be logged"
+      category: compliance
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if security-relevant actions have audit logging:
+          - Login/logout events must be logged
+          - Data access to sensitive resources must be logged
+          - Configuration changes must be logged
+          - Failed authentication attempts must be logged
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Missing audit logging for security-relevant action. SOC2 CC7.2."
+      fix_hint: "Add structured logging with user ID, action, resource, and timestamp"
+
+    - name: no-sensitive-data-in-logs
+      description: "Logs must not contain sensitive data"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(console\\.log|logger\\.).*\\b(password|secret|ssn|credit_card|token)\\b"
+      action: block
+      severity: critical
+      message: "Sensitive data in logs detected. SOC2 compliance violation."
+      fix_hint: "Mask or redact sensitive data before logging"
+
+    # ── Change Management (CC8.1) ──
+
+    - name: require-code-review
+      description: "Changes must go through code review"
+      category: compliance
+      enforcement: injected
+      instruction: |
+        All code changes must:
+        - Go through pull request review
+        - Have at least one approval before merge
+        - Include tests for new functionality
+        - Have clear commit messages explaining the change
+      action: log
+      severity: info
+
+    # ── Availability (A1.2) ──
+
+    - name: require-error-handling
+      description: "All async operations must have error handling"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}"
+      action: warn
+      severity: warning
+      message: "Empty catch block. Proper error handling required for SOC2 A1.2."
+      fix_hint: "Log the error and handle gracefully"
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      require_input_validation: true
+      require_logging: structured
+
+knowledge:
+  - name: soc2-overview
+    trigger: "implementing authentication, authorization, or security features"
+    priority: 100
+    content: |
+      ## SOC2 Trust Service Criteria
+
+      This manifest enforces SOC2 Type II compliance across:
+      - **CC6 (Logical Access)**: Authentication, authorization, access control
+      - **CC6.7 (Encryption)**: Data encryption in transit and at rest
+      - **CC7.2 (Monitoring)**: Audit logging and anomaly detection
+      - **CC8.1 (Change Management)**: Code review and deployment controls
+      - **A1.2 (Availability)**: Error handling and graceful degradation
+
+      Always prefer:
+      - Parameterized queries over string concatenation
+      - Structured logging over console.log
+      - Secrets manager over environment variables for production

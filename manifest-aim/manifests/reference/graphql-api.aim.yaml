@@ -1,0 +1,250 @@
+aim: "1.0"
+
+metadata:
+  name: graphql-api
+  version: 1.0.0
+  description: "GraphQL API design and security best practices"
+  tags: [graphql, api, typescript, security, performance]
+  license: MIT
+
+context:
+  persona: "API developer building GraphQL services"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Security ──
+
+    - name: require-authentication
+      description: "Mutations and sensitive queries need auth"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check authentication:
+          - Mutations should require authentication
+          - Sensitive queries should check authorization
+          - Use context to pass user information
+          - Never trust client-provided IDs without verification
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Ensure proper authentication/authorization."
+
+    - name: prevent-introspection-production
+      description: "Disable introspection in production"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check introspection settings:
+          - Introspection should be disabled in production
+          - Or restrict to authenticated admin users
+          - Document API separately for clients
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider disabling introspection in production."
+
+    - name: query-depth-limit
+      description: "Limit query depth to prevent DoS"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check query complexity limits:
+          - Set maximum query depth (7-10 levels typical)
+          - Implement query complexity analysis
+          - Set execution timeout
+          - Consider persisted queries
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Implement query depth/complexity limits."
+
+    # ── Performance ──
+
+    - name: use-dataloaders
+      description: "Use DataLoader to prevent N+1"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check data fetching:
+          - Use DataLoader for batching and caching
+          - Don't call database directly in resolvers
+          - Batch related data fetches
+          - Consider caching at multiple levels
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Use DataLoader to batch data fetching."
+
+    - name: pagination-required
+      description: "List fields must be paginated"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check list fields:
+          - Use Relay-style connections (edges/nodes)
+          - Or offset pagination with limit
+          - Set reasonable default/max page sizes
+          - Return totalCount when appropriate
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "List fields should support pagination."
+
+    # ── Schema Design ──
+
+    - name: nullable-by-default
+      description: "Be intentional about nullability"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Nullability best practices:
+        - Non-null (!) only when always available
+        - Return null rather than throw for missing data
+        - Consider nullable for fields that might error
+        - Document why fields are nullable
+      action: log
+      severity: info
+
+    - name: use-input-types
+      description: "Use Input types for mutations"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check mutation arguments:
+          - Use input types for complex arguments
+          - Validate input at schema level
+          - Use scalars for common types (DateTime, Email)
+          - Consider @constraint directive for validation
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider using Input types for mutations."
+
+    # ── Error Handling ──
+
+    - name: structured-errors
+      description: "Return structured, actionable errors"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check error handling:
+          - Use GraphQL errors with extensions
+          - Include error codes for client handling
+          - Don't expose internal error details
+          - Log full errors server-side
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Return structured errors with codes."
+
+  quality_gates:
+    code:
+      require_types: strict
+      require_error_handling: true
+
+knowledge:
+  - name: graphql-schema
+    trigger: "designing schema or writing resolvers"
+    priority: 100
+    content: |
+      ## GraphQL Schema Best Practices
+
+      ### Connection Pattern (Relay)
+      ```graphql
+      type Query {
+        users(first: Int, after: String): UserConnection!
+      }
+
+      type UserConnection {
+        edges: [UserEdge!]!
+        pageInfo: PageInfo!
+        totalCount: Int!
+      }
+
+      type UserEdge {
+        node: User!
+        cursor: String!
+      }
+
+      type PageInfo {
+        hasNextPage: Boolean!
+        hasPreviousPage: Boolean!
+        startCursor: String
+        endCursor: String
+      }
+      ```
+
+      ### Input Validation
+      ```graphql
+      input CreateUserInput {
+        email: EmailAddress!  # Custom scalar
+        name: String! @constraint(minLength: 1, maxLength: 100)
+        password: String! @constraint(minLength: 8)
+      }
+
+      type Mutation {
+        createUser(input: CreateUserInput!): CreateUserPayload!
+      }
+
+      type CreateUserPayload {
+        user: User
+        errors: [UserError!]!
+      }
+      ```
+
+  - name: graphql-security
+    trigger: "handling authentication or authorization"
+    priority: 90
+    content: |
+      ## GraphQL Security
+
+      ### Field-Level Authorization
+      ```typescript
+      const resolvers = {
+        User: {
+          email: (user, args, context) => {
+            // Only return email if user is viewing self or admin
+            if (context.user.id === user.id || context.user.isAdmin) {
+              return user.email;
+            }
+            return null;
+          }
+        }
+      };
+      ```
+
+      ### Query Complexity
+      ```typescript
+      import depthLimit from 'graphql-depth-limit';
+      import { createComplexityLimitRule } from 'graphql-validation-complexity';
+
+      const server = new ApolloServer({
+        validationRules: [
+          depthLimit(10),
+          createComplexityLimitRule(1000)
+        ]
+      });
+      ```

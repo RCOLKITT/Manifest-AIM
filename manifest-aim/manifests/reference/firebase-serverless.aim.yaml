@@ -1,0 +1,264 @@
+aim: "1.0"
+
+metadata:
+  name: firebase-serverless
+  version: 1.0.0
+  description: "Firebase and serverless development best practices"
+  tags: [firebase, serverless, cloud-functions, firestore, gcp]
+  license: MIT
+
+context:
+  persona: "Developer building Firebase/serverless applications"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Security Rules ──
+
+    - name: security-rules-required
+      description: "Firestore/RTDB must have security rules"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check security rules:
+          - Never allow read/write to all
+          - Validate user authentication
+          - Check resource ownership
+          - Validate data structure
+        model: fast
+        threshold: 0.9
+      action: block
+      severity: critical
+      message: "Security rules must be configured."
+
+    - name: no-admin-sdk-client
+      description: "Don't expose Admin SDK to client"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "firebase-admin"
+        file_types: [ts, js]
+      action: warn
+      severity: critical
+      message: "Admin SDK should not be in client code."
+      fix_hint: "Use Admin SDK only in Cloud Functions or server"
+
+    - name: validate-callable-input
+      description: "Validate Cloud Function input"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check callable functions:
+          - Validate all input data
+          - Check authentication (context.auth)
+          - Use Zod or similar for validation
+          - Don't trust client data
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Validate callable function input."
+
+    # ── Performance ──
+
+    - name: efficient-queries
+      description: "Write efficient Firestore queries"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check query efficiency:
+          - Use indexes for complex queries
+          - Avoid reading entire collections
+          - Use pagination (limit/startAfter)
+          - Consider data denormalization
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Review query efficiency."
+
+    - name: cold-start-optimization
+      description: "Minimize cold start time"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check function optimization:
+          - Lazy load dependencies
+          - Use min instances for critical functions
+          - Keep deployment size small
+          - Reuse connections across invocations
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider cold start optimization."
+
+    # ── Best Practices ──
+
+    - name: batch-writes
+      description: "Use batch writes for multiple operations"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check write patterns:
+          - Use batched writes for multiple docs
+          - Use transactions for atomic operations
+          - Limit batch to 500 operations
+          - Handle partial failures
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Consider using batch writes."
+
+    - name: function-timeout
+      description: "Set appropriate function timeouts"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check timeout configuration:
+          - Set timeoutSeconds appropriately
+          - HTTP functions: 60s max typical
+          - Background functions: consider needs
+          - Handle timeout gracefully
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Review function timeout settings."
+
+    # ── Error Handling ──
+
+    - name: function-errors
+      description: "Handle errors in Cloud Functions"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check error handling:
+          - Use HttpsError for callable functions
+          - Return proper error codes
+          - Log errors with context
+          - Don't expose internal details
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Handle errors properly."
+
+  quality_gates:
+    code:
+      require_types: strict
+      require_error_handling: true
+
+knowledge:
+  - name: firebase-patterns
+    trigger: "building Firebase apps or Cloud Functions"
+    priority: 100
+    content: |
+      ## Firebase Patterns
+
+      ### Security Rules
+      ```
+      rules_version = '2';
+      service cloud.firestore {
+        match /databases/{database}/documents {
+          // Users can only access their own data
+          match /users/{userId} {
+            allow read, write: if request.auth != null
+              && request.auth.uid == userId;
+          }
+
+          // Posts readable by all, writable by author
+          match /posts/{postId} {
+            allow read: if true;
+            allow create: if request.auth != null;
+            allow update, delete: if request.auth != null
+              && request.auth.uid == resource.data.authorId;
+          }
+        }
+      }
+      ```
+
+      ### Callable Function
+      ```typescript
+      import { onCall, HttpsError } from "firebase-functions/v2/https";
+      import { z } from "zod";
+
+      const CreatePostSchema = z.object({
+        title: z.string().min(1).max(100),
+        content: z.string().min(1)
+      });
+
+      export const createPost = onCall(async (request) => {
+        if (!request.auth) {
+          throw new HttpsError("unauthenticated", "Must be logged in");
+        }
+
+        const result = CreatePostSchema.safeParse(request.data);
+        if (!result.success) {
+          throw new HttpsError("invalid-argument", "Invalid input");
+        }
+
+        const { title, content } = result.data;
+        // Create post...
+      });
+      ```
+
+  - name: firebase-firestore
+    trigger: "working with Firestore or queries"
+    priority: 90
+    content: |
+      ## Firestore Patterns
+
+      ### Efficient Queries
+      ```typescript
+      // Paginated query
+      const pageSize = 20;
+      let lastDoc = null;
+
+      async function getNextPage() {
+        let query = db.collection('posts')
+          .orderBy('createdAt', 'desc')
+          .limit(pageSize);
+
+        if (lastDoc) {
+          query = query.startAfter(lastDoc);
+        }
+
+        const snapshot = await query.get();
+        lastDoc = snapshot.docs[snapshot.docs.length - 1];
+
+        return snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+      }
+      ```
+
+      ### Batch Writes
+      ```typescript
+      const batch = db.batch();
+
+      items.forEach(item => {
+        const ref = db.collection('items').doc();
+        batch.set(ref, item);
+      });
+
+      await batch.commit();
+      ```

@@ -1,0 +1,272 @@
+aim: "1.0"
+
+metadata:
+  name: accessibility-a11y
+  version: 1.0.0
+  description: "Web accessibility (WCAG) best practices"
+  tags: [accessibility, a11y, wcag, html, react, ui]
+  license: MIT
+
+context:
+  persona: "Frontend developer building accessible web applications"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Images ──
+
+    - name: require-alt-text
+      description: "Images must have alt text"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "<img[^>]*(?!alt=)[^>]*>"
+        file_types: [html, tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Images must have alt attributes."
+      fix_hint: "Add alt='description' or alt='' for decorative images"
+
+    - name: meaningful-alt-text
+      description: "Alt text should be meaningful"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check alt text quality:
+          - Alt should describe image content
+          - Avoid "image of", "picture of" prefixes
+          - Decorative images should have alt=""
+          - Complex images need longer descriptions
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Alt text should be descriptive."
+
+    # ── Semantic HTML ──
+
+    - name: use-semantic-elements
+      description: "Use semantic HTML elements"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check semantic markup:
+          - Use <button> for actions, not clickable <div>
+          - Use <nav>, <main>, <header>, <footer>
+          - Use heading hierarchy (h1-h6) correctly
+          - Use <ul>/<ol> for lists
+          - Use <table> with proper headers for tabular data
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider using semantic HTML elements."
+
+    - name: heading-hierarchy
+      description: "Maintain proper heading hierarchy"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check heading structure:
+          - Start with single h1
+          - Don't skip heading levels
+          - Use headings for structure, not styling
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Check heading hierarchy."
+
+    # ── Interactive Elements ──
+
+    - name: keyboard-accessible
+      description: "All interactive elements must be keyboard accessible"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check keyboard accessibility:
+          - onClick handlers need onKeyDown
+          - Custom controls need tabIndex
+          - Focus should be visible
+          - Focus order should be logical
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Ensure keyboard accessibility."
+
+    - name: button-accessible-name
+      description: "Buttons must have accessible names"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "<button[^>]*>\\s*<(svg|img)[^>]*>\\s*</button>"
+        file_types: [html, tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Icon-only buttons need accessible labels."
+      fix_hint: "Add aria-label or visually hidden text"
+
+    # ── Forms ──
+
+    - name: form-labels
+      description: "Form inputs must have labels"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check form accessibility:
+          - All inputs need associated labels
+          - Use <label for="id"> or wrap input
+          - Error messages linked with aria-describedby
+          - Required fields indicated
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Form inputs should have labels."
+
+    - name: form-errors
+      description: "Form errors must be accessible"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check error handling:
+          - Use aria-invalid for invalid fields
+          - Link errors with aria-describedby
+          - Use aria-live for dynamic errors
+          - Focus first error on submission
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Make form errors accessible."
+
+    # ── Color & Contrast ──
+
+    - name: color-contrast
+      description: "Ensure sufficient color contrast"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Color contrast requirements (WCAG AA):
+        - Normal text: 4.5:1 ratio
+        - Large text (18pt+): 3:1 ratio
+        - UI components: 3:1 ratio
+        - Don't rely on color alone to convey info
+        - Test with contrast checker tools
+      action: log
+      severity: info
+
+    # ── ARIA ──
+
+    - name: aria-usage
+      description: "Use ARIA correctly"
+      category: quality
+      enforcement: injected
+      instruction: |
+        ARIA best practices:
+        - First rule: don't use ARIA if native HTML works
+        - Use aria-label for non-visible labels
+        - Use aria-describedby for hints/errors
+        - Use aria-live for dynamic content
+        - Use aria-expanded for disclosure widgets
+        - Test with screen readers
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_types: false
+
+knowledge:
+  - name: a11y-patterns
+    trigger: "building UI components or forms"
+    priority: 100
+    content: |
+      ## Accessibility Patterns
+
+      ### Accessible Button
+      ```tsx
+      // Icon button with label
+      <button aria-label="Close dialog" onClick={handleClose}>
+        <CloseIcon aria-hidden="true" />
+      </button>
+
+      // Button with visible and hidden text
+      <button>
+        <span aria-hidden="true">×</span>
+        <span className="sr-only">Close</span>
+      </button>
+      ```
+
+      ### Accessible Form
+      ```tsx
+      <form>
+        <div>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            aria-describedby="email-error"
+            aria-invalid={!!errors.email}
+            required
+          />
+          {errors.email && (
+            <span id="email-error" role="alert">
+              {errors.email}
+            </span>
+          )}
+        </div>
+      </form>
+      ```
+
+      ### Skip Link
+      ```tsx
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+      <nav>...</nav>
+      <main id="main-content">...</main>
+      ```
+
+  - name: a11y-testing
+    trigger: "testing accessibility"
+    priority: 90
+    content: |
+      ## Accessibility Testing
+
+      ### Automated Testing
+      ```typescript
+      // Jest + Testing Library
+      import { axe, toHaveNoViolations } from 'jest-axe';
+
+      expect.extend(toHaveNoViolations);
+
+      test('page has no a11y violations', async () => {
+        const { container } = render(<MyComponent />);
+        const results = await axe(container);
+        expect(results).toHaveNoViolations();
+      });
+      ```
+
+      ### Manual Testing Checklist
+      - [ ] Navigate with keyboard only
+      - [ ] Test with screen reader (VoiceOver, NVDA)
+      - [ ] Check with browser zoom at 200%
+      - [ ] Verify focus indicators visible
+      - [ ] Test with color blindness simulator

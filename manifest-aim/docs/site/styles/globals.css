@@ -1,0 +1,50 @@
+/* Custom styles for Manifest AIM docs */
+
+/* Make copy buttons more prominent */
+pre button[title="Copy code"] {
+  opacity: 0.7 !important;
+}
+
+pre:hover button[title="Copy code"] {
+  opacity: 1 !important;
+}
+
+/* Install command hero section */
+.install-command {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 24px 0;
+  text-align: center;
+}
+
+.install-command code {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 18px;
+  color: #fff;
+  display: inline-block;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.install-command code:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Hero section styling */
+.hero-section {
+  text-align: center;
+  padding: 48px 0;
+}
+
+.hero-section h1 {
+  font-size: 3rem;
+  margin-bottom: 16px;
+}
+
+.hero-section p {
+  font-size: 1.25rem;
+  color: #666;
+}

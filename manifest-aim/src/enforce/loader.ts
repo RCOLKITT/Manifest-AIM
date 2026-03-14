@@ -5,10 +5,11 @@
 import { readFileSync } from "node:fs";
 import { extname } from "node:path";
 import yaml from "js-yaml";
-import type { GovernanceRule, EnforceContext } from "./types.js";
+import type { GovernanceRule, EnforceContext, TransformRule } from "./types.js";
 
 export interface LoadedManifest {
   rules: GovernanceRule[];
+  transforms: TransformRule[];
   context: EnforceContext;
   metadata: { name: string; version: string };
 }
@@ -35,6 +36,7 @@ export function loadManifestForEnforcement(filePath: string): LoadedManifest {
   const context = manifest.context as Record<string, unknown> | undefined;
 
   const rules = (governance?.rules as GovernanceRule[] | undefined) ?? [];
+  const transforms = (governance?.transforms as TransformRule[] | undefined) ?? [];
   const enforceContext: EnforceContext = {
     environment: context?.environment as string | undefined,
     variables: context?.variables as Record<string, unknown> | undefined,
@@ -42,6 +44,7 @@ export function loadManifestForEnforcement(filePath: string): LoadedManifest {
 
   return {
     rules,
+    transforms,
     context: enforceContext,
     metadata: {
       name: (metadata?.name as string) ?? "unknown",

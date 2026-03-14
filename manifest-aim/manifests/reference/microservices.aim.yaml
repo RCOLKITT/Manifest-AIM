@@ -1,0 +1,239 @@
+aim: "1.0"
+
+metadata:
+  name: microservices
+  version: 1.0.0
+  description: "Microservices architecture patterns and governance"
+  tags: [microservices, distributed, architecture, backend]
+  license: MIT
+
+context:
+  persona: "Backend engineer designing and building microservices"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Service Boundaries ──
+
+    - name: single-responsibility
+      description: "Services should have a single responsibility"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if this code/service follows single responsibility:
+          - Service should own one bounded context
+          - Avoid "God services" that do everything
+          - Database tables should belong to one service
+          - If service needs data from another domain, use APIs
+        model: standard
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Service may be taking on too many responsibilities."
+
+    - name: no-shared-database
+      description: "Services should not share databases"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check for database sharing anti-patterns:
+          - Multiple services writing to same tables
+          - Direct database queries across service boundaries
+          - Foreign keys between services' schemas
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Database coupling detected. Services should own their data."
+      fix_hint: "Use APIs or events for cross-service data access"
+
+    # ── Communication ──
+
+    - name: use-async-communication
+      description: "Prefer async communication for non-critical paths"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check communication patterns:
+          - Use message queues for async operations
+          - Use events for notifications
+          - Synchronous calls only when response is needed immediately
+          - Implement circuit breakers for sync calls
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider async communication for better resilience."
+
+    - name: implement-circuit-breaker
+      description: "External calls need circuit breakers"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if external service calls have resilience patterns:
+          - HTTP clients should have timeouts
+          - Consider circuit breakers for unreliable dependencies
+          - Implement retry with exponential backoff
+          - Have fallback behavior for failures
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "External call may lack resilience patterns."
+      fix_hint: "Add timeout, retry, and circuit breaker"
+
+    # ── Data Consistency ──
+
+    - name: eventual-consistency
+      description: "Handle eventual consistency properly"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Microservices embrace eventual consistency:
+        - Use saga pattern for distributed transactions
+        - Implement idempotent operations
+        - Design for out-of-order message delivery
+        - Use compensation for rollbacks
+        - Include correlation IDs in all messages
+      action: log
+      severity: info
+
+    # ── Observability ──
+
+    - name: distributed-tracing
+      description: "Services must support distributed tracing"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check for distributed tracing support:
+          - Pass trace context (traceparent header)
+          - Create spans for important operations
+          - Include trace IDs in logs
+          - Instrument HTTP clients and message consumers
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Service may not support distributed tracing."
+      fix_hint: "Add OpenTelemetry instrumentation"
+
+    - name: structured-logging
+      description: "Use structured logging with correlation"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "console\\.log\\(|print\\("
+      action: warn
+      severity: warning
+      message: "Use structured logging with correlation IDs."
+      fix_hint: "Use a structured logger with JSON output and trace context"
+
+    # ── API Design ──
+
+    - name: version-apis
+      description: "APIs must be versioned"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if service APIs are versioned:
+          - URL path versioning (/api/v1/) or header versioning
+          - Breaking changes require new version
+          - Deprecation notices for old versions
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "API should be versioned."
+
+    - name: define-contracts
+      description: "Services need API contracts"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Define clear API contracts:
+        - OpenAPI/Swagger for REST APIs
+        - Protobuf schemas for gRPC
+        - JSON Schema for message queues
+        - Contract testing with tools like Pact
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      require_input_validation: true
+      require_logging: structured
+
+knowledge:
+  - name: microservices-patterns
+    trigger: "designing services, APIs, or distributed systems"
+    priority: 100
+    content: |
+      ## Microservices Patterns
+
+      ### Communication
+      - **Sync**: REST, gRPC (use for queries, immediate responses)
+      - **Async**: Message queues, events (use for commands, notifications)
+
+      ### Data
+      - **Database per service**: Each service owns its data
+      - **Saga**: Distributed transactions via orchestration or choreography
+      - **CQRS**: Separate read and write models
+      - **Event Sourcing**: Store events, derive state
+
+      ### Resilience
+      - **Circuit Breaker**: Fail fast when dependency is down
+      - **Bulkhead**: Isolate failures
+      - **Retry**: With exponential backoff and jitter
+      - **Timeout**: Never wait forever
+
+      ### Service Discovery
+      - **Client-side**: Eureka, Consul
+      - **Server-side**: Load balancer, service mesh
+
+  - name: event-driven
+    trigger: "implementing events, messages, or async communication"
+    priority: 90
+    content: |
+      ## Event-Driven Architecture
+
+      ### Event Types
+      - **Domain Events**: Something happened (OrderCreated, PaymentReceived)
+      - **Integration Events**: Published to other services
+      - **Commands**: Request to do something (CreateOrder)
+
+      ### Event Schema
+      ```json
+      {
+        "eventId": "uuid",
+        "eventType": "OrderCreated",
+        "timestamp": "2024-01-15T10:30:00Z",
+        "correlationId": "uuid",
+        "payload": { ... },
+        "metadata": {
+          "version": 1,
+          "source": "order-service"
+        }
+      }
+      ```
+
+      ### Best Practices
+      - Make events immutable
+      - Include all necessary data (avoid callbacks)
+      - Version your events
+      - Handle idempotency (use eventId)
+      - Consider event ordering (partitioning)

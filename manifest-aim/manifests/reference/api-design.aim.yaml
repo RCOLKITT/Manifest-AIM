@@ -1,0 +1,210 @@
+aim: "1.0"
+
+metadata:
+  name: api-design
+  version: 1.0.0
+  description: "REST API design standards and governance"
+  tags: [api, rest, backend, design, openapi]
+  license: MIT
+
+context:
+  persona: "Backend engineer designing production REST APIs"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── HTTP Methods ──
+
+    - name: correct-http-methods
+      description: "Use correct HTTP methods for operations"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if HTTP methods match the operation:
+          - GET for reading data (must be idempotent, no side effects)
+          - POST for creating resources
+          - PUT for full updates (idempotent)
+          - PATCH for partial updates
+          - DELETE for removing resources (idempotent)
+          Violations: Using POST for reads, GET with side effects
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "HTTP method may not match the operation semantics."
+
+    # ── Response Codes ──
+
+    - name: proper-status-codes
+      description: "Use appropriate HTTP status codes"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if HTTP status codes are used correctly:
+          - 200 OK for successful GET/PUT/PATCH
+          - 201 Created for successful POST creating a resource
+          - 204 No Content for successful DELETE
+          - 400 Bad Request for validation errors
+          - 401 Unauthorized for missing auth
+          - 403 Forbidden for insufficient permissions
+          - 404 Not Found for missing resources
+          - 500 Internal Server Error for unexpected failures
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "HTTP status code may not match the response semantics."
+
+    # ── Validation ──
+
+    - name: validate-request-input
+      description: "All endpoints must validate input"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if API endpoints validate input:
+          - Request body must be validated with a schema
+          - Path parameters must be validated
+          - Query parameters must be type-checked
+          - Must reject invalid input with 400 status
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "API endpoint may not validate input properly."
+      fix_hint: "Use Zod, Joi, or class-validator for request validation"
+
+    - name: no-sql-injection
+      description: "Prevent SQL injection"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(query|execute)\\s*\\([^)]*\\$\\{|\\+\\s*['\"].*WHERE"
+      action: block
+      severity: critical
+      message: "Potential SQL injection. Use parameterized queries."
+      fix_hint: "Use parameterized queries or an ORM"
+
+    # ── Error Handling ──
+
+    - name: consistent-error-format
+      description: "Errors must have consistent format"
+      category: quality
+      enforcement: injected
+      instruction: |
+        All API errors should follow this format:
+        {
+          "error": {
+            "code": "VALIDATION_ERROR",
+            "message": "Human-readable message",
+            "details": [...optional field-level errors]
+          }
+        }
+        Never expose stack traces or internal errors to clients.
+      action: log
+      severity: info
+
+    # ── Versioning ──
+
+    - name: api-versioning
+      description: "APIs should be versioned"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if API routes include versioning:
+          - URL path versioning: /api/v1/users
+          - Or header versioning: Accept-Version header
+          Unversioned APIs risk breaking clients on changes.
+        model: fast
+        threshold: 0.7
+      action: warn
+      severity: info
+      message: "Consider versioning your API endpoints."
+
+    # ── Documentation ──
+
+    - name: document-endpoints
+      description: "Endpoints should have OpenAPI documentation"
+      category: quality
+      enforcement: injected
+      instruction: |
+        All API endpoints should have OpenAPI/Swagger documentation:
+        - Summary and description
+        - Request body schema
+        - Response schemas for all status codes
+        - Example requests and responses
+        - Authentication requirements
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      require_input_validation: true
+
+knowledge:
+  - name: rest-conventions
+    trigger: "designing API endpoints, routes, or controllers"
+    priority: 100
+    content: |
+      ## REST API Conventions
+
+      ### URL Structure
+      - Use nouns, not verbs: /users not /getUsers
+      - Use plural for collections: /users not /user
+      - Nest resources: /users/{id}/posts
+      - Use kebab-case: /user-settings not /userSettings
+
+      ### Pagination
+      - Use query params: ?page=1&limit=20 or ?cursor=abc
+      - Include metadata: { items, total, page, limit, hasNext }
+
+      ### Filtering & Sorting
+      - Filter: ?status=active&role=admin
+      - Sort: ?sort=createdAt:desc
+
+      ### Response Envelope
+      ```json
+      {
+        "data": { ... },
+        "meta": { "page": 1, "total": 100 }
+      }
+      ```
+
+  - name: error-handling
+    trigger: "implementing error handling or validation"
+    priority: 90
+    content: |
+      ## API Error Handling
+
+      ### Error Response Format
+      ```json
+      {
+        "error": {
+          "code": "RESOURCE_NOT_FOUND",
+          "message": "User with ID 123 not found",
+          "details": [
+            { "field": "id", "message": "Invalid user ID" }
+          ]
+        }
+      }
+      ```
+
+      ### Standard Error Codes
+      - VALIDATION_ERROR (400)
+      - UNAUTHORIZED (401)
+      - FORBIDDEN (403)
+      - RESOURCE_NOT_FOUND (404)
+      - CONFLICT (409)
+      - RATE_LIMITED (429)
+      - INTERNAL_ERROR (500)

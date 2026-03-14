@@ -1,0 +1,206 @@
+aim: "1.0"
+
+metadata:
+  name: nextjs-fullstack
+  version: 1.0.0
+  description: "Next.js 14+ App Router best practices and governance"
+  tags: [nextjs, react, typescript, fullstack, app-router]
+  license: MIT
+
+context:
+  persona: "Senior Next.js developer building production-grade web applications"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── App Router Patterns ──
+
+    - name: use-server-components
+      description: "Prefer Server Components for data fetching"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if React components follow Server Component patterns:
+          - Data fetching should happen in Server Components
+          - 'use client' should only be used when necessary (interactivity, browser APIs)
+          - Avoid fetching data in Client Components when Server Component is possible
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider using Server Components for data fetching."
+      fix_hint: "Move data fetching to Server Components, pass data as props to Client Components"
+
+    - name: no-use-effect-fetch
+      description: "Avoid useEffect for data fetching"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "useEffect\\s*\\([^)]*\\)\\s*\\{[^}]*fetch\\("
+        file_types: [tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Avoid useEffect for data fetching. Use Server Components or SWR/React Query."
+      fix_hint: "Use Server Components, server actions, or data fetching libraries"
+
+    # ── Security ──
+
+    - name: validate-server-actions
+      description: "Server actions must validate input"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if server actions (functions with 'use server') validate their input:
+          - Must use Zod, Yup, or similar for input validation
+          - Must not trust client-provided data directly
+          - Must handle validation errors gracefully
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Server action may not validate input properly."
+      fix_hint: "Use Zod or similar to validate input at the start of server actions"
+
+    - name: no-dangerouslySetInnerHTML
+      description: "Avoid dangerouslySetInnerHTML without sanitization"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "dangerouslySetInnerHTML"
+        file_types: [tsx, jsx]
+      action: warn
+      severity: warning
+      message: "dangerouslySetInnerHTML can lead to XSS. Ensure content is sanitized."
+      fix_hint: "Use DOMPurify or similar to sanitize HTML, or avoid raw HTML entirely"
+
+    # ── Performance ──
+
+    - name: optimize-images
+      description: "Use next/image for images"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "<img\\s"
+        file_types: [tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Use next/image instead of <img> for automatic optimization."
+      fix_hint: "Import Image from 'next/image' and use <Image /> component"
+
+    - name: use-dynamic-imports
+      description: "Large components should use dynamic imports"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if large or conditional components use dynamic imports:
+          - Modals, dialogs, and overlays should be dynamically imported
+          - Heavy visualization components should use lazy loading
+          - Consider dynamic() for components not needed on initial load
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider dynamic imports for better performance."
+
+    # ── TypeScript ──
+
+    - name: no-any-type
+      description: "Avoid 'any' type"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: ":\\s*any\\b"
+        file_types: [ts, tsx]
+      action: warn
+      severity: warning
+      message: "Avoid 'any' type — use proper typing."
+      fix_hint: "Define proper interfaces/types or use 'unknown'"
+
+    # ── File Organization ──
+
+    - name: colocate-components
+      description: "Components should be colocated with routes"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Next.js App Router file organization:
+        - Page-specific components go in the route folder
+        - Shared components go in /components
+        - Server actions can be colocated or in /actions
+        - Types go in /types or colocated .types.ts files
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_types: strict
+      max_file_length: 300
+      require_error_handling: true
+
+knowledge:
+  - name: app-router-patterns
+    trigger: "creating pages, routes, layouts, or API routes"
+    priority: 100
+    content: |
+      ## Next.js App Router Patterns
+
+      ### File Conventions
+      - page.tsx — Route UI
+      - layout.tsx — Shared layout (persists across navigation)
+      - loading.tsx — Loading UI (Suspense boundary)
+      - error.tsx — Error boundary
+      - not-found.tsx — 404 page
+
+      ### Data Fetching
+      - Server Components: fetch() directly, no useEffect
+      - Client Components: SWR or React Query
+      - Server Actions: 'use server' for mutations
+
+      ### Caching
+      - fetch() caches by default in Server Components
+      - Use revalidate for ISR
+      - cache: 'no-store' for dynamic data
+
+  - name: server-actions
+    trigger: "creating forms, mutations, or server actions"
+    priority: 90
+    content: |
+      ## Server Actions Best Practices
+
+      ```tsx
+      'use server'
+
+      import { z } from 'zod'
+      import { revalidatePath } from 'next/cache'
+
+      const schema = z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+      })
+
+      export async function createUser(formData: FormData) {
+        const parsed = schema.safeParse({
+          name: formData.get('name'),
+          email: formData.get('email'),
+        })
+
+        if (!parsed.success) {
+          return { error: parsed.error.flatten() }
+        }
+
+        // ... create user
+        revalidatePath('/users')
+        return { success: true }
+      }
+      ```

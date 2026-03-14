@@ -1,0 +1,246 @@
+aim: "1.0"
+
+metadata:
+  name: fastapi-python
+  version: 1.0.0
+  description: "FastAPI web framework best practices"
+  tags: [python, fastapi, api, async, pydantic]
+  license: MIT
+
+context:
+  persona: "Python developer building FastAPI services"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Type Safety ──
+
+    - name: use-pydantic-models
+      description: "Use Pydantic models for request/response"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check request handling:
+          - Use Pydantic BaseModel for request bodies
+          - Define response models with response_model
+          - Use Field() for validation constraints
+          - Define proper return types
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Use Pydantic models for type safety."
+
+    - name: type-hints-required
+      description: "Functions should have type hints"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check type annotations:
+          - All function parameters should have types
+          - Return types should be annotated
+          - Use Optional, Union, List properly
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Add type hints to functions."
+
+    # ── Dependency Injection ──
+
+    - name: use-dependency-injection
+      description: "Use FastAPI's dependency injection"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check dependency patterns:
+          - Use Depends() for shared logic
+          - Create reusable dependencies
+          - Use dependency overrides for testing
+          - Avoid global state
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Consider using dependency injection."
+
+    # ── Security ──
+
+    - name: validate-input
+      description: "Validate all input data"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check input validation:
+          - Path parameters should be constrained
+          - Query parameters should have validation
+          - Use constr, conint for constraints
+          - Validate file uploads
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Ensure input is validated."
+
+    - name: secure-auth
+      description: "Implement proper authentication"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check authentication:
+          - Use OAuth2 or JWT properly
+          - Protect sensitive endpoints
+          - Use HTTPS in production
+          - Hash passwords with bcrypt/argon2
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Review authentication implementation."
+
+    # ── Error Handling ──
+
+    - name: exception-handlers
+      description: "Use proper exception handling"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check error handling:
+          - Define custom exception classes
+          - Use exception handlers
+          - Return consistent error responses
+          - Log errors with context
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Implement proper exception handling."
+
+    # ── Performance ──
+
+    - name: async-io-operations
+      description: "Use async for I/O operations"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check async usage:
+          - Database calls should be async
+          - HTTP requests should use httpx
+          - Don't block event loop
+          - Use background tasks for slow operations
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Use async for I/O operations."
+
+  quality_gates:
+    code:
+      require_types: strict
+      require_error_handling: true
+      max_file_length: 400
+
+knowledge:
+  - name: fastapi-patterns
+    trigger: "building endpoints or handling requests"
+    priority: 100
+    content: |
+      ## FastAPI Patterns
+
+      ### Request/Response Models
+      ```python
+      from pydantic import BaseModel, Field, EmailStr
+
+      class UserCreate(BaseModel):
+          email: EmailStr
+          name: str = Field(..., min_length=1, max_length=100)
+          password: str = Field(..., min_length=8)
+
+      class UserResponse(BaseModel):
+          id: int
+          email: EmailStr
+          name: str
+
+          class Config:
+              from_attributes = True
+
+      @app.post("/users", response_model=UserResponse)
+      async def create_user(user: UserCreate):
+          db_user = await User.create(**user.model_dump())
+          return db_user
+      ```
+
+      ### Dependency Injection
+      ```python
+      async def get_db():
+          db = SessionLocal()
+          try:
+              yield db
+          finally:
+              db.close()
+
+      async def get_current_user(
+          token: str = Depends(oauth2_scheme),
+          db: Session = Depends(get_db)
+      ) -> User:
+          user = await verify_token(token, db)
+          if not user:
+              raise HTTPException(status_code=401)
+          return user
+
+      @app.get("/me")
+      async def read_me(user: User = Depends(get_current_user)):
+          return user
+      ```
+
+  - name: fastapi-errors
+    trigger: "handling errors or exceptions"
+    priority: 90
+    content: |
+      ## FastAPI Error Handling
+
+      ### Custom Exceptions
+      ```python
+      class NotFoundError(Exception):
+          def __init__(self, resource: str, id: Any):
+              self.resource = resource
+              self.id = id
+
+      @app.exception_handler(NotFoundError)
+      async def not_found_handler(request: Request, exc: NotFoundError):
+          return JSONResponse(
+              status_code=404,
+              content={
+                  "error": "not_found",
+                  "message": f"{exc.resource} {exc.id} not found"
+              }
+          )
+      ```
+
+      ### Validation Error Response
+      ```python
+      @app.exception_handler(RequestValidationError)
+      async def validation_handler(request: Request, exc: RequestValidationError):
+          return JSONResponse(
+              status_code=422,
+              content={
+                  "error": "validation_error",
+                  "details": exc.errors()
+              }
+          )
+      ```

@@ -1,19 +1,15 @@
 /**
  * Semantic detection engine — LLM-as-judge enforcement.
  *
- * Uses Claude to evaluate code against natural language criteria.
+ * Uses Vercel AI SDK for multi-provider support (Anthropic, OpenAI, etc.)
  * This is what makes AIM fundamentally different from a linter:
  * rules like "does this follow clean architecture?" are enforceable.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { generateText } from "ai";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
 import type { SemanticDetect, Violation, GovernanceRule } from "./types.js";
-
-const MODEL_MAP: Record<string, string> = {
-  fast: "claude-haiku-4-5-20251001",
-  standard: "claude-sonnet-4-5-20241022",
-  thorough: "claude-opus-4-0-20250514",
-};
 
 interface JudgeVerdict {
   pass: boolean;
@@ -21,25 +17,66 @@ interface JudgeVerdict {
   reason: string;
 }
 
-let clientInstance: Anthropic | null = null;
-let clientChecked = false;
+type ProviderType = "anthropic" | "openai" | null;
 
-function getClient(): Anthropic | null {
-  if (clientChecked) return clientInstance;
-  clientChecked = true;
+let providerChecked = false;
+let activeProvider: ProviderType = null;
 
-  // The SDK auto-discovers ANTHROPIC_API_KEY and ANTHROPIC_BASE_URL from env.
-  // If neither is set, skip gracefully.
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  const baseUrl = process.env.ANTHROPIC_BASE_URL;
-  if (!apiKey && !baseUrl) return null;
+/**
+ * Detect which AI provider is available based on environment variables.
+ */
+function detectProvider(): ProviderType {
+  if (providerChecked) return activeProvider;
+  providerChecked = true;
 
-  try {
-    clientInstance = new Anthropic();
-    return clientInstance;
-  } catch {
-    return null;
+  // Check Anthropic first (preferred)
+  if (process.env.ANTHROPIC_API_KEY) {
+    activeProvider = "anthropic";
+    return activeProvider;
   }
+
+  // Fallback to OpenAI
+  if (process.env.OPENAI_API_KEY) {
+    activeProvider = "openai";
+    return activeProvider;
+  }
+
+  return null;
+}
+
+/**
+ * Get the appropriate model for the tier and provider.
+ */
+function getModel(tier: string, provider: ProviderType) {
+  if (provider === "anthropic") {
+    const anthropic = createAnthropic();
+    switch (tier) {
+      case "fast":
+        return anthropic("claude-haiku-4-5-20251001");
+      case "standard":
+        return anthropic("claude-sonnet-4-5-20241022");
+      case "thorough":
+        return anthropic("claude-opus-4-0-20250514");
+      default:
+        return anthropic("claude-haiku-4-5-20251001");
+    }
+  }
+
+  if (provider === "openai") {
+    const openai = createOpenAI();
+    switch (tier) {
+      case "fast":
+        return openai("gpt-4o-mini");
+      case "standard":
+        return openai("gpt-4o");
+      case "thorough":
+        return openai("gpt-4o");
+      default:
+        return openai("gpt-4o-mini");
+    }
+  }
+
+  throw new Error("No provider available");
 }
 
 /**
@@ -119,49 +156,41 @@ export interface SemanticResult {
   skipReason?: string;
 }
 
+/** Reset cached provider (for testing). */
+export function __resetClient(): void {
+  providerChecked = false;
+  activeProvider = null;
+}
+
 /**
  * Run semantic detection against a file using LLM-as-judge.
  */
-/** Reset cached client (for testing). */
-export function __resetClient(): void {
-  clientInstance = null;
-  clientChecked = false;
-}
-
 export async function runSemanticDetection(
   rule: GovernanceRule,
   detect: SemanticDetect,
   filePath: string,
   content: string,
 ): Promise<SemanticResult> {
-  const client = getClient();
-  if (!client) {
+  const provider = detectProvider();
+  if (!provider) {
     return {
       violations: [],
       skipped: true,
-      skipReason: "No Anthropic credentials found. Set ANTHROPIC_API_KEY or ANTHROPIC_BASE_URL.",
+      skipReason: "No AI provider found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY.",
     };
   }
 
   const modelTier = detect.model ?? "fast";
-  const model = MODEL_MAP[modelTier] ?? MODEL_MAP.fast;
   const threshold = detect.threshold ?? 0.8;
-
   const prompt = buildJudgePrompt(detect, filePath, content);
 
   try {
-    const response = await client.messages.create({
-      model,
-      max_tokens: 512,
-      temperature: 0.1,
-      messages: [{ role: "user", content: prompt }],
-    });
+    const model = getModel(modelTier, provider);
 
-    // Extract text from response
-    const text = response.content
-      .filter((block): block is Anthropic.TextBlock => block.type === "text")
-      .map((block) => block.text)
-      .join("");
+    const { text } = await generateText({
+      model,
+      prompt,
+    });
 
     const verdict = parseVerdict(text);
 
@@ -176,7 +205,7 @@ export async function runSemanticDetection(
             severity: rule.severity,
             action: rule.action,
             fix_hint: rule.fix_hint,
-            match: `[${modelTier}] ${verdict.reason} (confidence: ${verdict.confidence})`,
+            match: `[${provider}:${modelTier}] ${verdict.reason} (confidence: ${verdict.confidence})`,
           },
         ],
         skipped: false,
@@ -192,7 +221,7 @@ export async function runSemanticDetection(
       return {
         violations: [],
         skipped: true,
-        skipReason: "Anthropic API authentication failed. Check your ANTHROPIC_API_KEY.",
+        skipReason: `${provider} API authentication failed. Check your API key.`,
       };
     }
 

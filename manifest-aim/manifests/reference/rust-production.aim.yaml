@@ -1,0 +1,236 @@
+aim: "1.0"
+
+metadata:
+  name: rust-production
+  version: 1.0.0
+  description: "Rust production code standards and best practices"
+  tags: [rust, systems, production, safety]
+  license: MIT
+
+context:
+  persona: "Rust developer building safe, performant production systems"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Safety ──
+
+    - name: no-unsafe-without-justification
+      description: "Unsafe blocks must have safety comments"
+      category: safety
+      enforcement: static
+      detect:
+        type: pattern
+        match: "unsafe\\s*\\{(?![^}]*//\\s*SAFETY)"
+        file_types: [rs]
+      action: warn
+      severity: warning
+      message: "Unsafe block without SAFETY comment."
+      fix_hint: "Add a // SAFETY: comment explaining why this is safe"
+
+    - name: no-unwrap-in-production
+      description: "Avoid unwrap() in production code"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\.unwrap\\(\\)"
+        file_types: [rs]
+      action: warn
+      severity: warning
+      message: "Avoid .unwrap() in production. Handle errors explicitly."
+      fix_hint: "Use ? operator, unwrap_or, unwrap_or_else, or match"
+
+    - name: no-expect-without-message
+      description: "expect() must have descriptive message"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\.expect\\(\\s*\"[^\"]{0,15}\"\\s*\\)"
+        file_types: [rs]
+      action: warn
+      severity: info
+      message: "expect() message should be descriptive."
+      fix_hint: "Explain why this should never fail"
+
+    # ── Error Handling ──
+
+    - name: proper-error-handling
+      description: "Use proper error handling"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check error handling patterns:
+          - Use Result<T, E> for fallible operations
+          - Define custom error types with thiserror
+          - Use anyhow for application errors
+          - Propagate errors with ? operator
+          - Don't panic in library code
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Error handling could be improved."
+
+    # ── Performance ──
+
+    - name: avoid-clone-abuse
+      description: "Avoid unnecessary cloning"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check for unnecessary clone() usage:
+          - Clone when a reference would work
+          - Clone in hot paths
+          - Clone large data structures
+          Consider using references, Cow, or Arc instead.
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider if this clone() is necessary."
+
+    - name: use-iterator-methods
+      description: "Prefer iterator methods over manual loops"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Prefer iterator methods for clarity and performance:
+        - .map(), .filter(), .fold() over manual loops
+        - .collect() to build collections
+        - .find(), .any(), .all() for searches
+        - Use lazy evaluation when possible
+      action: log
+      severity: info
+
+    # ── Security ──
+
+    - name: no-hardcoded-secrets
+      description: "No hardcoded secrets"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(password|secret|api_key|token)\\s*[=:]\\s*\"[^\"]{8,}\""
+        file_types: [rs]
+      action: block
+      severity: critical
+      message: "Hardcoded secret detected."
+      fix_hint: "Use environment variables or a secrets manager"
+
+    # ── Documentation ──
+
+    - name: document-public-items
+      description: "Public items should have documentation"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if public items have documentation:
+          - pub fn should have /// doc comments
+          - pub struct should document fields
+          - pub enum should document variants
+          - Include examples when helpful
+        model: fast
+        threshold: 0.7
+      action: warn
+      severity: info
+      message: "Public item should have documentation."
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      max_complexity: 20
+      max_file_length: 500
+
+knowledge:
+  - name: rust-patterns
+    trigger: "writing rust code, structs, or error handling"
+    priority: 100
+    content: |
+      ## Rust Patterns
+
+      ### Error Handling
+      ```rust
+      use thiserror::Error;
+
+      #[derive(Error, Debug)]
+      pub enum MyError {
+          #[error("IO error: {0}")]
+          Io(#[from] std::io::Error),
+          #[error("Invalid input: {0}")]
+          InvalidInput(String),
+      }
+      ```
+
+      ### Builder Pattern
+      ```rust
+      #[derive(Default)]
+      pub struct ConfigBuilder {
+          timeout: Option<Duration>,
+      }
+
+      impl ConfigBuilder {
+          pub fn timeout(mut self, timeout: Duration) -> Self {
+              self.timeout = Some(timeout);
+              self
+          }
+
+          pub fn build(self) -> Result<Config, Error> {
+              Ok(Config {
+                  timeout: self.timeout.unwrap_or(Duration::from_secs(30)),
+              })
+          }
+      }
+      ```
+
+      ### Newtype Pattern
+      ```rust
+      pub struct UserId(pub i64);
+
+      impl UserId {
+          pub fn new(id: i64) -> Self {
+              Self(id)
+          }
+      }
+      ```
+
+  - name: async-rust
+    trigger: "writing async code, futures, or tokio"
+    priority: 90
+    content: |
+      ## Async Rust
+
+      ### Tokio Runtime
+      ```rust
+      #[tokio::main]
+      async fn main() -> Result<()> {
+          let handle = tokio::spawn(async {
+              // async work
+          });
+          handle.await?;
+          Ok(())
+      }
+      ```
+
+      ### Select Pattern
+      ```rust
+      tokio::select! {
+          result = future1 => { /* handle */ }
+          _ = tokio::time::sleep(timeout) => {
+              return Err(Error::Timeout);
+          }
+      }
+      ```
+
+      ### Cancellation Safety
+      - Use tokio::select! carefully
+      - Consider pin!() for local futures
+      - Use CancellationToken for graceful shutdown

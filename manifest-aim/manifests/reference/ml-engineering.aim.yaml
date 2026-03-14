@@ -1,0 +1,259 @@
+aim: "1.0"
+
+metadata:
+  name: ml-engineering
+  version: 1.0.0
+  description: "Machine learning engineering best practices and governance"
+  tags: [ml, machine-learning, ai, data-science, python]
+  license: MIT
+
+context:
+  persona: "ML engineer building production machine learning systems"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Reproducibility ──
+
+    - name: pin-dependencies
+      description: "Pin all package versions"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "^[a-z-]+$|>=|>|~="
+        file_types: [txt, toml]
+      action: warn
+      severity: warning
+      message: "Pin exact versions for reproducibility (package==1.2.3)."
+      fix_hint: "Use pip freeze or poetry lock for exact versions"
+
+    - name: set-random-seeds
+      description: "Set random seeds for reproducibility"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if code sets random seeds for reproducibility:
+          - numpy.random.seed() or np.random.seed()
+          - torch.manual_seed() for PyTorch
+          - tf.random.set_seed() for TensorFlow
+          - random.seed() for Python random
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider setting random seeds for reproducibility."
+
+    # ── Data Handling ──
+
+    - name: validate-data-schema
+      description: "Validate data schema at boundaries"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if data validation is performed:
+          - Input data should be validated against expected schema
+          - Check for missing values, data types, ranges
+          - Use tools like pandera, great_expectations, pydantic
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider adding data validation."
+      fix_hint: "Use pandera or great_expectations for dataframe validation"
+
+    - name: no-data-leakage
+      description: "Prevent train/test data leakage"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check for data leakage risks:
+          - Fitting scalers/encoders on full dataset before split
+          - Using future data for predictions
+          - Target leakage through features
+          - Time-series: using future dates in training
+        model: standard
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Potential data leakage detected."
+      fix_hint: "Fit transformers only on training data, respect time ordering"
+
+    # ── Model Management ──
+
+    - name: version-models
+      description: "Models must be versioned"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Model versioning requirements:
+        - Use MLflow, Weights & Biases, or DVC for tracking
+        - Log: hyperparameters, metrics, artifacts, code version
+        - Version training data alongside models
+        - Include model card with intended use and limitations
+      action: log
+      severity: info
+
+    - name: log-experiments
+      description: "Log all experiment parameters and metrics"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if experiments are properly logged:
+          - Hyperparameters are logged
+          - Metrics (loss, accuracy, etc.) are tracked
+          - Training artifacts are saved
+          - Experiment can be reproduced
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: warning
+      message: "Experiment may not be fully logged."
+
+    # ── Security ──
+
+    - name: no-pickle-untrusted
+      description: "Don't unpickle untrusted data"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "pickle\\.load|joblib\\.load|torch\\.load"
+        file_types: [py]
+      action: warn
+      severity: warning
+      message: "Loading pickled data can execute arbitrary code."
+      fix_hint: "Only load models from trusted sources, consider ONNX or SafeTensors"
+
+    - name: no-hardcoded-api-keys
+      description: "No hardcoded API keys"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(api_key|secret|token)\\s*=\\s*['\"][^'\"]{8,}['\"]"
+        file_types: [py, ipynb]
+      action: block
+      severity: critical
+      message: "Hardcoded API key detected."
+      fix_hint: "Use environment variables or secrets manager"
+
+    # ── Production ──
+
+    - name: handle-model-failures
+      description: "Handle model prediction failures gracefully"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if model serving handles failures:
+          - Catch exceptions during prediction
+          - Have fallback behavior (default value, cached result)
+          - Log failures for monitoring
+          - Return appropriate error responses
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Model serving may not handle failures gracefully."
+
+    - name: monitor-model-drift
+      description: "Monitor for model drift"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Production model monitoring:
+        - Track prediction distribution over time
+        - Monitor feature distributions for data drift
+        - Track accuracy on live data when labels available
+        - Set up alerts for significant drift
+        - Plan for model retraining triggers
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      require_types: true
+
+knowledge:
+  - name: ml-best-practices
+    trigger: "building models, training pipelines, or ML systems"
+    priority: 100
+    content: |
+      ## ML Engineering Best Practices
+
+      ### Project Structure
+      ```
+      /data
+        /raw          # Immutable raw data
+        /processed    # Cleaned data
+      /models         # Trained models
+      /notebooks      # Exploration (not production)
+      /src
+        /data         # Data processing
+        /features     # Feature engineering
+        /models       # Model definitions
+        /training     # Training scripts
+        /serving      # Inference
+      /tests
+      ```
+
+      ### Training Pipeline
+      1. Data validation (schema, quality)
+      2. Feature engineering (reproducible transforms)
+      3. Train/val/test split (time-aware for time series)
+      4. Model training with hyperparameter logging
+      5. Model evaluation with multiple metrics
+      6. Model registration and versioning
+
+      ### Serving
+      - Batch: Scheduled jobs, data pipelines
+      - Real-time: REST API, gRPC
+      - Edge: ONNX, TensorFlow Lite
+
+  - name: experiment-tracking
+    trigger: "tracking experiments, hyperparameters, or metrics"
+    priority: 90
+    content: |
+      ## Experiment Tracking
+
+      ### MLflow Example
+      ```python
+      import mlflow
+
+      with mlflow.start_run():
+          mlflow.log_params({
+              "learning_rate": 0.01,
+              "epochs": 100,
+              "batch_size": 32,
+          })
+
+          # Training...
+
+          mlflow.log_metrics({
+              "accuracy": 0.95,
+              "f1_score": 0.93,
+              "loss": 0.05,
+          })
+
+          mlflow.sklearn.log_model(model, "model")
+      ```
+
+      ### What to Log
+      - Hyperparameters (all of them)
+      - Training and validation metrics per epoch
+      - Final test metrics
+      - Data version/hash
+      - Code version (git commit)
+      - Environment (Python version, package versions)

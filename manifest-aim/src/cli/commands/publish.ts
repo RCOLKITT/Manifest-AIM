@@ -51,10 +51,7 @@ export async function publishCommand(
 
     if (message.includes("Not authenticated")) {
       console.error(chalk.red(`\n  ✗ ${message}`));
-      console.error(chalk.dim(`\n  To authenticate:`));
-      console.error(chalk.dim(`    1. Create an account at https://registry.manifestaim.dev`));
-      console.error(chalk.dim(`    2. Generate an API key in your account settings`));
-      console.error(chalk.dim(`    3. Run: manifest login\n`));
+      console.error(chalk.dim(`\n  To authenticate, run: manifest login\n`));
     } else {
       console.error(chalk.red(`\n  ✗ ${message}\n`));
     }

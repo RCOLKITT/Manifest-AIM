@@ -1,6 +1,8 @@
 import { writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve, basename } from "node:path";
 import chalk from "chalk";
+import { analyzeProject, summarizeAnalysis } from "../../services/project-analyzer.js";
+import { generateAIM } from "../../services/aim-generator.js";
 
 const STARTER_MANIFEST = `aim: "1.0"
 
@@ -64,9 +66,13 @@ knowledge:
 export async function initCommand(options: {
   template?: string;
   force?: boolean;
+  smart?: boolean;
+  strictness?: "standard" | "strict" | "paranoid";
+  compliance?: string[];
 }): Promise<void> {
   const targetPath = resolve("aim.yaml");
   const aimDir = resolve(".aim");
+  const projectPath = resolve(".");
 
   // Check if file already exists
   if (existsSync(targetPath) && !options.force) {
@@ -89,15 +95,43 @@ export async function initCommand(options: {
 
   // Generate manifest content
   let content: string;
+  let usedSmartAnalysis = false;
 
-  if (options.template) {
+  // Use smart analysis unless explicitly disabled or using a template
+  if (!options.template && options.smart !== false) {
+    console.log(chalk.dim("\n  Analyzing project..."));
+
+    try {
+      const analysis = await analyzeProject(projectPath);
+
+      // Check if we detected anything meaningful
+      if (analysis.stacks.length > 0 || analysis.language !== "unknown") {
+        content = generateAIM(analysis, {
+          strictness: options.strictness || "standard",
+          compliance: options.compliance || [],
+          includeKnowledge: true,
+        });
+        usedSmartAnalysis = true;
+
+        console.log(chalk.green("  ✓ Project analyzed successfully\n"));
+        console.log(chalk.dim(`    ${summarizeAnalysis(analysis).split("\n").slice(0, 5).join("\n    ")}`));
+        console.log();
+      } else {
+        console.log(chalk.dim("  No project manifest detected, using starter template\n"));
+        content = STARTER_MANIFEST.replace(/%PROJECT_NAME%/g, projectName);
+      }
+    } catch (error) {
+      console.log(chalk.dim("  Analysis failed, using starter template\n"));
+      content = STARTER_MANIFEST.replace(/%PROJECT_NAME%/g, projectName);
+    }
+  } else if (options.template) {
     // TODO: Load from reference manifests or registry
     console.log(
       chalk.yellow(
         `\n  ⚠ Template "${options.template}" — registry templates coming in v0.4.0`,
       ),
     );
-    console.log(chalk.dim("  Using default starter manifest instead.\n"));
+    console.log(chalk.dim("  Using default starter template.\n"));
     content = STARTER_MANIFEST.replace(/%PROJECT_NAME%/g, projectName);
   } else {
     content = STARTER_MANIFEST.replace(/%PROJECT_NAME%/g, projectName);
@@ -111,17 +145,25 @@ export async function initCommand(options: {
     mkdirSync(aimDir, { recursive: true });
   }
 
-  console.log(chalk.green(`\n  ✓ Created ${chalk.white("aim.yaml")}\n`));
+  console.log(chalk.green(`  ✓ Created ${chalk.white("aim.yaml")}\n`));
+
+  if (usedSmartAnalysis) {
+    console.log(chalk.dim("  Generated from your project:"));
+    console.log(chalk.dim("    • Security rules based on detected tech stack"));
+    console.log(chalk.dim("    • Quality rules matching your strictness level"));
+    console.log(chalk.dim("    • Knowledge units from build/test configuration\n"));
+  }
+
   console.log(chalk.dim("  Next steps:"));
   console.log(
-    chalk.dim(`    1. Edit ${chalk.white("aim.yaml")} to define your standards`),
+    chalk.dim(`    1. Review ${chalk.white("aim.yaml")} and customize for your team`),
   );
   console.log(
     chalk.dim(`    2. Run ${chalk.white("manifest validate")} to check your manifest`),
   );
   console.log(
     chalk.dim(
-      `    3. Run ${chalk.white("manifest doctor")} to verify your environment`,
+      `    3. Run ${chalk.white("manifest wrap .")} to inject governance into agent context`,
     ),
   );
   console.log();

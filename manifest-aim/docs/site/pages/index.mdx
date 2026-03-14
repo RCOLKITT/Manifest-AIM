@@ -4,6 +4,10 @@
 
 Manifest AIM defines how AI agents should behave, what they're allowed to do, and how their output is enforced. One `aim.yaml` file governs your entire AI development workflow.
 
+```bash copy
+npm install -g manifest-aim
+```
+
 ## The Problem
 
 AI coding agents (Claude Code, Cursor, Windsurf) are powerful but ungoverned. Every team has standards, but agents don't know them unless you tell them — every single time. There's no standard way to:
@@ -14,7 +18,7 @@ AI coding agents (Claude Code, Cursor, Windsurf) are powerful but ungoverned. Ev
 
 ## The Solution
 
-```yaml
+```yaml copy filename="aim.yaml"
 # aim.yaml — one file governs everything
 aim: "1.0"
 
@@ -61,10 +65,22 @@ manifest enforce    → Verify output compliance
 
 ## Get Started
 
-```bash
-npx manifest-aim init
-npx manifest-aim generate
-npx manifest-aim wrap claude-code
+```bash copy
+npm install -g manifest-aim
+manifest init
+manifest generate
+manifest wrap claude-code
 ```
 
 Or explore the [Quickstart Guide](/quickstart) →
+
+## Manifest Registry
+
+Share and discover governance manifests with the community:
+
+```bash copy
+manifest login              # Authenticate with GitHub/Google
+manifest search typescript  # Find manifests
+manifest install hipaa      # Install to your project
+manifest publish            # Share your manifests
+```

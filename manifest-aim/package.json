@@ -16,7 +16,7 @@
   "author": "Vaspera Capital",
   "type": "module",
   "license": "SEE LICENSE IN LICENSE",
-  "homepage": "https://manifestaim.dev",
+  "homepage": "https://manifest-aim.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/RCOLKITT/Manifest-AIM"
@@ -42,7 +42,12 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "~3.0.58",
+    "@ai-sdk/openai": "~3.0.41",
     "@anthropic-ai/sdk": "^0.78.0",
+    "@modelcontextprotocol/sdk": "~1.27.1",
+    "@supabase/supabase-js": "~2.99.1",
+    "ai": "~6.0.116",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "chalk": "^5.4.1",

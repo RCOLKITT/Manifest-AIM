@@ -4,7 +4,7 @@
 
 
 ## Context
-You are: Senior TypeScript platform engineer building a developer tool that must be rock-solid, well-tested, and maintainable
+You are: Senior TypeScript engineer following production best practices
 Domain: software-engineering
 Environment: production
 
@@ -12,90 +12,63 @@ Environment: production
 
 The following rules are enforced on your output. Violations will be caught by the enforcement engine.
 
-### Static (enforced post-output — 8 rules)
-- **no-eval** [BLOCKS] eval() is forbidden in platform code.
+### Static (enforced post-output — 6 rules)
+- **no-eval** [BLOCKS] eval() is forbidden. Use safe alternatives.
 - **no-hardcoded-secrets** [BLOCKS] Hardcoded secrets detected.
+- **no-console-in-src** [WARN] console.log detected in production code.
+- **no-empty-catch** [WARN] Empty catch block swallows errors.
 - **no-any-type** [WARN] Avoid 'any' type — use specific types or 'unknown'.
 - **no-ts-ignore** [WARN] Use @ts-expect-error with explanation instead.
-- **no-console-in-src** [WARN] console.log detected — library code should not log directly.
-- **no-empty-catch** [WARN] Empty catch block swallows errors.
-- **no-todo-in-production** [WARN] Unresolved TODO/FIXME found.
-- **run-eslint** [WARN] ESLint check failed.
 
-### Guidelines (2 rules)
+### Semantic (LLM-as-judge — 1 rules)
+- **clean-architecture** [WARN] Code may violate clean architecture principles.
+
+### Guidelines (1 rules)
 These are advisory rules. Follow them unless there is a strong reason not to.
 
 
 ## Instructions
 
 ### platform-standards
-Manifest AIM Platform Standards:
-1. All public APIs must have TypeScript types — no 'any'
-2. Every new feature needs tests (vitest)
-3. CLI commands go in src/cli/commands/, engines in src/<domain>/
-4. Use js-yaml for YAML, commander for CLI, chalk for output
-5. Manifests validate against schemas/aim-v1.0.schema.json
-6. Keep functions under 50 lines, files under 400 lines
-7. Error messages must be actionable — tell the user what to do
-8. All file paths must use node:path for cross-platform support
-
-### testing-standards
-Testing Standards:
-1. Unit tests for all engines (enforce, compile, wrap, tier)
-2. CLI integration tests using execSync
-3. Fixtures go in tests/fixtures/
-4. Test both success and failure paths
-5. Benchmark tests for performance claims
+manifest-aim Development Standards:
+- All code must be TypeScript with strict mode
+- No 'any' types without explicit justification
+- Write tests using Vitest
+- Test both success and failure paths
+- Keep functions under 50 lines, files under 400 lines
+- Error messages must be actionable
 
 ## Quality Gates
 
 ### code
-- **test coverage minimum**: 80
 - **require types**: strict
 - **max complexity**: 15
 - **max file length**: 400
 - **require error handling**: true
-- **forbidden patterns**: \beval\(, @ts-ignore
 
 ## Knowledge
 
 Load the following knowledge when the trigger conditions are met.
 
-### aim-architecture
-**When:** adding new features, commands, or modules to the AIM platform
+### architecture
+**When:** creating new modules, services, or components
 
-## AIM Platform Architecture
+## manifest-aim Architecture
 
-```
-src/
-├── cli/           # CLI entry point + commands
-│   ├── index.ts   # Commander setup, all commands registered
-│   └── commands/   # One file per command
-├── enforce/        # Enforcement engine (pattern, tool, semantic, composite)
-├── compile/        # Manifest compilation + inheritance
-├── wrap/           # Context injection for agent platforms
-├── tier/           # Progressive capability loading
-├── registry/       # Registry client (publish, install, search)
-└── index.ts        # Public API exports
+Directory structure:
+- src/
+- tests/
+API style: rest
 
-tests/              # Vitest tests (mirrors src/ structure)
-schemas/            # JSON Schema for aim.yaml validation
-manifests/          # Reference manifests
-action/             # GitHub Action
-docs/               # Specification + documentation site
-```
+### build-and-test
+**When:** building, testing, or running the project
 
-### manifest-format
-**When:** working with aim.yaml files, schema, or validation
+## Build & Test Commands
 
-## AIM Manifest Format
-
-Required fields: aim (version), metadata.name, metadata.version
-Governance rules need: name, detect (or instruction for injected), action, severity
-Detection types: pattern, tool, semantic, composite
-Enforcement modes: static, semantic, injected
-Quality gates: code, content, data domains
+build: tsc
+test: vitest
+test:coverage: vitest --coverage
 
 
 ---
-*AIM governance active. 10 rules loaded. Run `manifest enforce` to validate output.*
+*AIM governance active. 8 rules loaded. Run `manifest enforce` to validate output.*

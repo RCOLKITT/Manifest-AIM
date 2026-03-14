@@ -134,6 +134,8 @@ knowledge:
 
 ## CLI Commands
 
+### Core Commands
+
 | Command | Description |
 |---------|-------------|
 | `manifest init` | Create a new `aim.yaml` in current directory |
@@ -145,8 +147,123 @@ knowledge:
 | `manifest enforce <path>` | Run enforcement checks standalone |
 | `manifest publish` | Publish manifest to Manifest Registry |
 | `manifest install <name>` | Install manifest from registry |
-| `manifest audit` | Show governance report |
 | `manifest generate` | Auto-generate manifest from project analysis (via Rebar) |
+
+### Enterprise Commands
+
+| Command | Description |
+|---------|-------------|
+| `manifest serve` | Start the AIM API server for Studio integration |
+| `manifest audit list` | List audit events with filtering |
+| `manifest audit summary` | Generate compliance summary |
+| `manifest audit export` | Export audit log to CSV or JSON |
+| `manifest approval list` | List approval requests |
+| `manifest approval show <id>` | Show approval request details |
+| `manifest approval approve <id>` | Approve a pending request |
+| `manifest approval reject <id>` | Reject a pending request |
+| `manifest team list` | List teams and members |
+| `manifest team roles` | Show role definitions |
+
+## Enterprise Features
+
+Manifest includes enterprise-grade governance for teams and organizations:
+
+### Role-Based Access Control (RBAC)
+
+Built-in roles with granular permissions:
+
+- **viewer** — Read manifests, audit logs, and approvals
+- **developer** — Create and edit manifests
+- **reviewer** — Approve or reject requests
+- **admin** — Full access including RBAC management
+
+```typescript
+const rbac = new RBACManager();
+rbac.addUser(user);
+rbac.assignRole(userId, "developer");
+
+if (rbac.hasPermission(userId, "manifest:edit")) {
+  // User can edit manifests
+}
+```
+
+### Approval Workflows
+
+Human-in-the-loop governance with configurable policies:
+
+```yaml
+governance:
+  rules:
+    - name: production-deploy
+      action: require_approval
+      config:
+        approval:
+          approvers: ["lead@company.com"]
+          approver_roles: ["reviewer"]
+          require_justification: true
+          min_approvals: 2
+          expires_in: "24h"
+          escalate_after: "4h"
+```
+
+### Audit Logging
+
+Comprehensive audit trail for compliance:
+
+- All enforcement actions logged
+- Query and filter by time, type, severity
+- Generate compliance summaries with trends
+- Export to CSV or JSON
+- Automatic retention policies
+
+### Escalation Routing
+
+Multi-channel escalation with tiered policies:
+
+```yaml
+escalation:
+  - name: critical-violations
+    trigger: severity >= critical
+    levels:
+      - contacts: ["oncall@company.com"]
+        wait: 5m
+        channels: [email, slack]
+      - contacts: ["manager@company.com"]
+        wait: 15m
+        channels: [email, pagerduty]
+```
+
+### Persistent Storage
+
+Enterprise deployments use Supabase PostgreSQL for persistence:
+
+```typescript
+import { createClient } from "@supabase/supabase-js";
+import { createSupabaseStorageAdapters } from "manifest-aim/enterprise/storage";
+
+const supabase = createClient(url, key);
+const storage = createSupabaseStorageAdapters(supabase);
+
+// Use with enterprise managers
+const auditLogger = new AuditLogger(storage.audit);
+const approvalManager = new ApprovalManager(storage.approval);
+```
+
+## AIM Studio
+
+A web-based management interface for enterprise deployments:
+
+- **Manifest Editor** — Visual editor with real-time validation
+- **Rule Builder** — Drag-and-drop rule creation
+- **Audit Dashboard** — Compliance metrics and trends
+- **Approval Queue** — Manage approval requests
+- **Team Management** — RBAC and team configuration
+
+Start the API server and connect Studio:
+
+```bash
+manifest serve --port 4000
+```
 
 ## Product Family
 
@@ -154,6 +271,7 @@ knowledge:
 |---------|------|
 | **AIM** | The protocol — the instruction language for AI agents |
 | **Manifest** | The platform — CLI, runtime, registry, enterprise governance |
+| **Studio** | The interface — web UI for enterprise management |
 | **Rebar** | The generator — analyzes projects, outputs `aim.yaml` automatically |
 
 ## Documentation
@@ -162,6 +280,8 @@ knowledge:
 - [Enforcement Architecture](docs/ENFORCEMENT.md)
 - [Manifest Schema Reference](docs/SCHEMA.md)
 - [Writing Your First Manifest](docs/GETTING_STARTED.md)
+- [Enterprise Features Guide](docs/ENTERPRISE.md)
+- [API Reference](docs/API.md)
 - [Reference Manifests](manifests/reference/)
 
 ## License

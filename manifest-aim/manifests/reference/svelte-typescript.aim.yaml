@@ -1,0 +1,249 @@
+aim: "1.0"
+
+metadata:
+  name: svelte-typescript
+  version: 1.0.0
+  description: "Svelte and SvelteKit with TypeScript best practices"
+  tags: [svelte, sveltekit, typescript, frontend, ssr]
+  license: MIT
+
+context:
+  persona: "Svelte developer building production applications"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Type Safety ──
+
+    - name: type-props
+      description: "Component props should be typed"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check prop typing:
+          - Use TypeScript for component props
+          - Define prop types explicitly
+          - Use $props() rune in Svelte 5
+          - Export interface for complex props
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Type component props."
+
+    - name: typed-stores
+      description: "Stores should have types"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check store typing:
+          - writable<T>() with explicit type
+          - derived stores with return type
+          - Custom stores with typed interface
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Add types to stores."
+
+    # ── SvelteKit ──
+
+    - name: load-function-safety
+      description: "Load functions should handle errors"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check load functions:
+          - Use try/catch or error() helper
+          - Return proper error responses
+          - Validate dynamic parameters
+          - Use TypeScript for PageLoad types
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Handle errors in load functions."
+
+    - name: form-actions
+      description: "Use form actions for mutations"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check form handling:
+          - Use form actions for data mutations
+          - Validate form data server-side
+          - Return proper action results
+          - Handle progressive enhancement
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Consider using form actions."
+
+    # ── Reactivity ──
+
+    - name: reactivity-patterns
+      description: "Use proper reactivity patterns"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check reactivity:
+          - Use $: for derived values
+          - Use $effect() in Svelte 5
+          - Avoid mutating arrays/objects directly
+          - Use reactive declarations for side effects
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Review reactivity patterns."
+
+    # ── Performance ──
+
+    - name: component-lifecycle
+      description: "Clean up subscriptions and effects"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check cleanup:
+          - Unsubscribe from stores in onDestroy
+          - Clean up event listeners
+          - Cancel pending requests
+          - Use onMount for browser-only code
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Clean up subscriptions on destroy."
+
+    - name: lazy-loading
+      description: "Lazy load heavy components"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check code splitting:
+          - Use dynamic imports for large components
+          - Split routes automatically with SvelteKit
+          - Consider {#await} for lazy components
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider lazy loading."
+
+  quality_gates:
+    code:
+      require_types: strict
+      max_file_length: 300
+
+knowledge:
+  - name: svelte-patterns
+    trigger: "building components or managing state"
+    priority: 100
+    content: |
+      ## Svelte Patterns
+
+      ### Typed Props (Svelte 5)
+      ```svelte
+      <script lang="ts">
+        interface Props {
+          title: string;
+          count?: number;
+          onUpdate?: (value: number) => void;
+        }
+
+        let { title, count = 0, onUpdate }: Props = $props();
+      </script>
+      ```
+
+      ### Typed Stores
+      ```typescript
+      import { writable, derived } from 'svelte/store';
+
+      interface User {
+        id: string;
+        name: string;
+      }
+
+      export const user = writable<User | null>(null);
+
+      export const isLoggedIn = derived(user, $user => $user !== null);
+      ```
+
+      ### Form Actions
+      ```typescript
+      // +page.server.ts
+      import { fail, redirect } from '@sveltejs/kit';
+
+      export const actions = {
+        login: async ({ request, cookies }) => {
+          const data = await request.formData();
+          const email = data.get('email');
+
+          if (!email) {
+            return fail(400, { email, missing: true });
+          }
+
+          // Validate and login...
+          cookies.set('session', token, { path: '/' });
+          throw redirect(303, '/dashboard');
+        }
+      };
+      ```
+
+  - name: sveltekit-load
+    trigger: "fetching data or handling routes"
+    priority: 90
+    content: |
+      ## SvelteKit Load Functions
+
+      ### Page Load
+      ```typescript
+      // +page.ts
+      import type { PageLoad } from './$types';
+
+      export const load: PageLoad = async ({ params, fetch }) => {
+        const res = await fetch(`/api/posts/${params.id}`);
+
+        if (!res.ok) {
+          throw error(404, 'Post not found');
+        }
+
+        return {
+          post: await res.json()
+        };
+      };
+      ```
+
+      ### Server Load
+      ```typescript
+      // +page.server.ts
+      import type { PageServerLoad } from './$types';
+
+      export const load: PageServerLoad = async ({ params, locals }) => {
+        if (!locals.user) {
+          throw redirect(303, '/login');
+        }
+
+        const post = await db.post.findUnique({
+          where: { id: params.id }
+        });
+
+        return { post };
+      };
+      ```

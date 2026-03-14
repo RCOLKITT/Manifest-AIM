@@ -1,0 +1,266 @@
+aim: "1.0"
+
+metadata:
+  name: kotlin-android
+  version: 1.0.0
+  description: "Kotlin and Android development best practices"
+  tags: [kotlin, android, mobile, jetpack, compose]
+  license: MIT
+
+context:
+  persona: "Android developer building production apps"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Null Safety ──
+
+    - name: avoid-null-assertions
+      description: "Avoid non-null assertions"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "[a-zA-Z_][a-zA-Z0-9_]*!!"
+        file_types: [kt]
+      action: warn
+      severity: warning
+      message: "Non-null assertion can crash."
+      fix_hint: "Use safe calls (?.), elvis (?:), or let"
+
+    - name: use-safe-calls
+      description: "Use null-safe patterns"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check null handling:
+          - Use ?. for nullable calls
+          - Use ?: for defaults
+          - Use let for null checks
+          - Consider requireNotNull for validation
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Consider null-safe patterns."
+
+    # ── Coroutines ──
+
+    - name: structured-concurrency
+      description: "Follow structured concurrency"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check coroutine usage:
+          - Use viewModelScope in ViewModels
+          - Use lifecycleScope in UI
+          - Don't use GlobalScope
+          - Handle cancellation properly
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Use structured concurrency."
+
+    - name: proper-dispatchers
+      description: "Use appropriate dispatchers"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check dispatcher usage:
+          - IO for network/database
+          - Default for CPU-intensive
+          - Main for UI updates
+          - Inject dispatchers for testing
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Review dispatcher usage."
+
+    # ── Security ──
+
+    - name: encrypted-preferences
+      description: "Use encrypted storage"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check data storage:
+          - Use EncryptedSharedPreferences for secrets
+          - Don't store plain credentials
+          - Use Android Keystore for keys
+          - Clear sensitive data on logout
+        model: fast
+        threshold: 0.9
+      action: warn
+      severity: warning
+      message: "Use encrypted storage for sensitive data."
+
+    - name: input-validation
+      description: "Validate untrusted input"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check input handling:
+          - Validate intent extras
+          - Sanitize deep link parameters
+          - Validate file paths
+          - Check content provider queries
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Validate untrusted input."
+
+    # ── Compose ──
+
+    - name: compose-best-practices
+      description: "Follow Compose best practices"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check Compose patterns:
+          - Keep composables small
+          - Use remember for expensive computations
+          - Use derivedStateOf for derived state
+          - Avoid side effects in composition
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Review Compose patterns."
+
+    - name: state-hoisting
+      description: "Hoist state appropriately"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check state management:
+          - Hoist state to appropriate level
+          - Use ViewModel for screen state
+          - Pass state down, events up
+          - Use stateless composables
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider state hoisting."
+
+  quality_gates:
+    code:
+      require_types: strict
+      max_file_length: 400
+
+knowledge:
+  - name: kotlin-patterns
+    trigger: "writing Kotlin code"
+    priority: 100
+    content: |
+      ## Kotlin Patterns
+
+      ### Null Safety
+      ```kotlin
+      // Safe call and elvis
+      val length = name?.length ?: 0
+
+      // Let for null checks
+      user?.let { u ->
+          display(u.name, u.email)
+      }
+
+      // Also for side effects
+      user?.also { log("User: ${it.id}") }
+
+      // Require for validation
+      val user = requireNotNull(currentUser) { "User required" }
+      ```
+
+      ### Coroutines
+      ```kotlin
+      class UserViewModel(
+          private val repository: UserRepository,
+          private val dispatcher: CoroutineDispatcher = Dispatchers.IO
+      ) : ViewModel() {
+
+          private val _state = MutableStateFlow<UiState>(UiState.Loading)
+          val state: StateFlow<UiState> = _state.asStateFlow()
+
+          fun loadUser(id: String) {
+              viewModelScope.launch {
+                  _state.value = UiState.Loading
+                  try {
+                      val user = withContext(dispatcher) {
+                          repository.getUser(id)
+                      }
+                      _state.value = UiState.Success(user)
+                  } catch (e: Exception) {
+                      _state.value = UiState.Error(e.message)
+                  }
+              }
+          }
+      }
+      ```
+
+  - name: compose-patterns
+    trigger: "building Compose UI"
+    priority: 90
+    content: |
+      ## Jetpack Compose Patterns
+
+      ### State Hoisting
+      ```kotlin
+      @Composable
+      fun LoginScreen(
+          viewModel: LoginViewModel = hiltViewModel()
+      ) {
+          val state by viewModel.state.collectAsStateWithLifecycle()
+
+          LoginContent(
+              email = state.email,
+              onEmailChange = viewModel::updateEmail,
+              onSubmit = viewModel::login
+          )
+      }
+
+      @Composable
+      private fun LoginContent(
+          email: String,
+          onEmailChange: (String) -> Unit,
+          onSubmit: () -> Unit
+      ) {
+          // Stateless UI
+      }
+      ```
+
+      ### Remember Patterns
+      ```kotlin
+      // Expensive computation
+      val sortedList = remember(items) {
+          items.sortedBy { it.name }
+      }
+
+      // Derived state
+      val isValid by remember {
+          derivedStateOf { email.contains("@") }
+      }
+
+      // Keys for recomposition
+      key(user.id) {
+          UserCard(user)
+      }
+      ```

@@ -89,4 +89,78 @@ export interface EnforceSummary {
   duration: number;
   /** Rules that were skipped (e.g., no API key for semantic, tool not found). */
   skippedRules: Record<string, string>;
+  /** Transforms applied to output. */
+  transforms?: TransformSummary[];
+}
+
+export interface TransformSummary {
+  rule: string;
+  file: string;
+  type: string;
+  line?: number;
+  original?: string;
+  replacement?: string;
+}
+
+export interface TransformConfig {
+  type: "remove_match" | "replace" | "inject";
+  position?: "top" | "bottom" | "before_match" | "after_match";
+  template?: string;
+  replacement?: string;
+  scope?: "output" | "log_output" | "both";
+}
+
+export interface TransformRule extends GovernanceRule {
+  transform: TransformConfig;
+}
+
+export interface RetryConfig {
+  instruction?: string;
+  max_attempts?: number;
+}
+
+export interface RetryRule extends GovernanceRule {
+  retry?: RetryConfig;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Approval Configuration
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface ApprovalConfig {
+  /** Who can approve (user IDs, role IDs, or team IDs) */
+  approvers?: string[];
+  /** Roles that can approve */
+  approver_roles?: string[];
+  /** Teams that can approve */
+  approver_teams?: string[];
+  /** Require justification from requester */
+  require_justification?: boolean;
+  /** How long until the approval request expires */
+  expires_in?: string;
+  /** Escalate if not reviewed within this time */
+  escalate_after?: string;
+  /** Minimum number of approvals needed */
+  min_approvals?: number;
+}
+
+export interface ApprovalRule extends GovernanceRule {
+  approval?: ApprovalConfig;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Escalation Configuration
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface EscalationConfig {
+  /** Escalation policy to use */
+  policy?: string;
+  /** Contacts to notify (overrides policy) */
+  contacts?: string[];
+  /** Custom message */
+  message?: string;
+}
+
+export interface EscalationRule extends GovernanceRule {
+  escalation?: EscalationConfig;
 }

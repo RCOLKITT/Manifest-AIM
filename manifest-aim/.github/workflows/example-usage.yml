@@ -1,0 +1,66 @@
+# Example: How to use AIM enforcement in your repository
+#
+# Copy this workflow to your repo's .github/workflows/ directory
+# and customize as needed.
+
+name: CI with AIM Governance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # Run AIM enforcement on all PRs and pushes
+  aim-enforce:
+    name: AIM Governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Manifest AIM CLI
+        run: npm install -g manifest-aim@latest
+
+      - name: Validate AIM manifest
+        run: manifest validate aim.yaml
+
+      - name: Run AIM Enforcement
+        env:
+          # Optional: Enable semantic enforcement with LLM-as-judge
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: manifest enforce . --manifest aim.yaml
+
+  # Alternative: Use the reusable workflow
+  # aim-enforce:
+  #   uses: manifest-aim/manifest-aim/.github/workflows/aim-enforce.yml@main
+  #   with:
+  #     manifest: 'aim.yaml'
+  #     path: 'src/'
+  #     fail-on-warnings: true
+  #   secrets:
+  #     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+  # Run your other CI jobs after AIM passes
+  build:
+    name: Build
+    needs: aim-enforce
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm run build
+
+  test:
+    name: Test
+    needs: aim-enforce
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci
+      - run: npm test

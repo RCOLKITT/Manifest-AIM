@@ -1,0 +1,249 @@
+aim: "1.0"
+
+metadata:
+  name: terraform-iac
+  version: 1.0.0
+  description: "Terraform Infrastructure as Code best practices"
+  tags: [terraform, iac, infrastructure, devops, cloud]
+  license: MIT
+
+context:
+  persona: "Infrastructure engineer using Terraform"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Security ──
+
+    - name: no-hardcoded-secrets
+      description: "No secrets in Terraform files"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(password|secret|api_key|token)\\s*=\\s*\"[^$][^\"]{8,}\""
+        file_types: [tf]
+      action: block
+      severity: critical
+      message: "Hardcoded secrets in Terraform."
+      fix_hint: "Use variables, Vault, or SSM Parameter Store"
+
+    - name: require-encryption
+      description: "Enable encryption for data at rest"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check encryption settings:
+          - S3 buckets should have encryption enabled
+          - RDS instances should use encrypted storage
+          - EBS volumes should be encrypted
+          - Use KMS keys for sensitive data
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Enable encryption for this resource."
+
+    - name: restrict-security-groups
+      description: "Don't allow 0.0.0.0/0 ingress"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "cidr_blocks\\s*=\\s*\\[\"0\\.0\\.0\\.0/0\"\\]"
+        file_types: [tf]
+      action: warn
+      severity: warning
+      message: "Overly permissive security group rule."
+      fix_hint: "Restrict to specific IP ranges or security groups"
+
+    - name: private-subnets
+      description: "Use private subnets for internal resources"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check network design:
+          - Databases should be in private subnets
+          - Internal services should not have public IPs
+          - Use NAT gateways for outbound internet
+          - Bastion hosts for SSH access
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider using private subnets."
+
+    # ── Best Practices ──
+
+    - name: use-modules
+      description: "Use modules for reusable infrastructure"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Module best practices:
+        - Create modules for repeated patterns
+        - Use versioned module sources
+        - Keep modules focused (single responsibility)
+        - Document module inputs and outputs
+        - Use Terraform Registry modules when appropriate
+      action: log
+      severity: info
+
+    - name: state-management
+      description: "Use remote state with locking"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check state configuration:
+          - Use remote backend (S3, GCS, Azure Blob)
+          - Enable state locking (DynamoDB, etc.)
+          - Enable state encryption
+          - Don't commit terraform.tfstate
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Configure remote state with locking."
+
+    - name: use-variables
+      description: "Use variables for configurable values"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check variable usage:
+          - Environment-specific values should be variables
+          - Use variable validation where appropriate
+          - Set sensible defaults
+          - Document variables with descriptions
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider using variables."
+
+    # ── Tagging ──
+
+    - name: require-tags
+      description: "Resources should have tags"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check resource tagging:
+          - All resources should have Name tag
+          - Include environment tag
+          - Include owner/team tag
+          - Consider cost allocation tags
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Add tags to resources."
+
+  quality_gates:
+    code:
+      require_types: false
+
+knowledge:
+  - name: terraform-patterns
+    trigger: "writing Terraform or creating infrastructure"
+    priority: 100
+    content: |
+      ## Terraform Patterns
+
+      ### Module Structure
+      ```
+      modules/
+        vpc/
+          main.tf
+          variables.tf
+          outputs.tf
+          README.md
+        rds/
+          main.tf
+          variables.tf
+          outputs.tf
+      environments/
+        dev/
+          main.tf
+          terraform.tfvars
+        prod/
+          main.tf
+          terraform.tfvars
+      ```
+
+      ### Remote State
+      ```hcl
+      terraform {
+        backend "s3" {
+          bucket         = "my-terraform-state"
+          key            = "prod/terraform.tfstate"
+          region         = "us-east-1"
+          encrypt        = true
+          dynamodb_table = "terraform-lock"
+        }
+      }
+      ```
+
+      ### Variable Validation
+      ```hcl
+      variable "environment" {
+        type        = string
+        description = "Environment name"
+        validation {
+          condition     = contains(["dev", "staging", "prod"], var.environment)
+          error_message = "Environment must be dev, staging, or prod."
+        }
+      }
+      ```
+
+  - name: terraform-security
+    trigger: "creating security groups or IAM policies"
+    priority: 90
+    content: |
+      ## Terraform Security
+
+      ### Secure S3 Bucket
+      ```hcl
+      resource "aws_s3_bucket" "secure" {
+        bucket = "my-secure-bucket"
+      }
+
+      resource "aws_s3_bucket_server_side_encryption_configuration" "secure" {
+        bucket = aws_s3_bucket.secure.id
+        rule {
+          apply_server_side_encryption_by_default {
+            sse_algorithm = "aws:kms"
+          }
+        }
+      }
+
+      resource "aws_s3_bucket_public_access_block" "secure" {
+        bucket = aws_s3_bucket.secure.id
+        block_public_acls       = true
+        block_public_policy     = true
+        ignore_public_acls      = true
+        restrict_public_buckets = true
+      }
+      ```
+
+      ### Least Privilege IAM
+      ```hcl
+      data "aws_iam_policy_document" "lambda" {
+        statement {
+          effect    = "Allow"
+          actions   = ["s3:GetObject"]
+          resources = ["${aws_s3_bucket.data.arn}/*"]
+        }
+      }
+      ```

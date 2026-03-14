@@ -1,0 +1,336 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://manifestaim.dev/schemas/aim-1.0.json",
+  "title": "AIM Manifest",
+  "description": "Agent Instruction Manifest (AIM) specification v1.0",
+  "type": "object",
+  "required": ["aim"],
+  "properties": {
+    "aim": {
+      "type": "string",
+      "description": "AIM protocol version",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "examples": ["1.0"]
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Package metadata",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Package name (kebab-case)",
+          "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+        },
+        "version": {
+          "type": "string",
+          "description": "Semantic version",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9.]+)?$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description"
+        },
+        "authors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Package authors"
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Discovery tags"
+        },
+        "license": {
+          "type": "string",
+          "description": "SPDX license identifier"
+        },
+        "repository": {
+          "type": "string",
+          "format": "uri",
+          "description": "Source repository URL"
+        }
+      },
+      "required": ["name", "version"]
+    },
+    "context": {
+      "type": "object",
+      "description": "Agent context configuration",
+      "properties": {
+        "persona": {
+          "type": "string",
+          "description": "Agent's role identity"
+        },
+        "audience": {
+          "type": "string",
+          "description": "Who the output serves"
+        },
+        "domain": {
+          "type": "string",
+          "description": "Business domain",
+          "examples": ["software-engineering", "devops", "content-creation"]
+        },
+        "environment": {
+          "type": "string",
+          "description": "Runtime environment",
+          "examples": ["development", "staging", "production"]
+        },
+        "organization": {
+          "type": "string",
+          "description": "Organization identifier"
+        },
+        "compliance": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Regulatory frameworks",
+          "examples": [["hipaa", "soc2", "gdpr"]]
+        },
+        "variables": {
+          "type": "object",
+          "description": "Custom context variables",
+          "additionalProperties": true
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "description": "Rules, transforms, and quality gates",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "description": "Enforcement rules",
+          "items": { "$ref": "#/definitions/rule" }
+        },
+        "transforms": {
+          "type": "array",
+          "description": "Output transforms",
+          "items": { "$ref": "#/definitions/transform" }
+        },
+        "quality_gates": {
+          "type": "object",
+          "description": "Quality requirements",
+          "properties": {
+            "code": {
+              "type": "object",
+              "properties": {
+                "require_types": {
+                  "type": ["boolean", "string"],
+                  "description": "Type safety requirement"
+                },
+                "max_complexity": {
+                  "type": "integer",
+                  "description": "Max cyclomatic complexity"
+                },
+                "max_file_length": {
+                  "type": "integer",
+                  "description": "Max lines per file"
+                },
+                "require_error_handling": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "description": "Agent capabilities with tiered loading",
+      "items": { "$ref": "#/definitions/capability" }
+    },
+    "knowledge": {
+      "type": "array",
+      "description": "Domain knowledge units",
+      "items": { "$ref": "#/definitions/knowledge" }
+    },
+    "dependencies": {
+      "type": "array",
+      "description": "Manifest dependencies",
+      "items": {
+        "type": "object",
+        "properties": {
+          "aim": { "type": "string" },
+          "version": { "type": "string" }
+        },
+        "required": ["aim"]
+      }
+    },
+    "inherits": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Base manifests to extend"
+    }
+  },
+  "definitions": {
+    "rule": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Rule identifier (kebab-case)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable explanation"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["security", "quality", "compliance", "style", "safety", "custom"]
+        },
+        "enforcement": {
+          "type": "string",
+          "enum": ["static", "semantic", "injected", "composite"],
+          "description": "How the rule is enforced"
+        },
+        "detect": {
+          "type": "object",
+          "description": "Detection configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["pattern", "tool", "semantic", "composite"]
+            },
+            "match": {
+              "type": "string",
+              "description": "Regex pattern (for pattern type)"
+            },
+            "command": {
+              "type": "string",
+              "description": "CLI command (for tool type)"
+            },
+            "criteria": {
+              "type": "string",
+              "description": "Evaluation criteria (for semantic type)"
+            },
+            "model": {
+              "type": "string",
+              "enum": ["fast", "standard", "thorough"],
+              "description": "LLM tier for semantic evaluation"
+            },
+            "threshold": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Confidence threshold"
+            },
+            "file_types": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "File extensions to check"
+            }
+          }
+        },
+        "action": {
+          "type": "string",
+          "enum": ["block", "warn", "require_approval", "escalate", "transform", "log", "retry"],
+          "description": "What happens when rule triggers"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error", "critical"],
+          "description": "Rule severity level"
+        },
+        "message": {
+          "type": "string",
+          "description": "Message shown when rule triggers"
+        },
+        "fix_hint": {
+          "type": "string",
+          "description": "Guidance for fixing the violation"
+        },
+        "when": {
+          "type": "string",
+          "description": "Activation condition (CEL expression)"
+        },
+        "unless": {
+          "type": "string",
+          "description": "Exception condition"
+        },
+        "exclude_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Glob patterns to exclude"
+        },
+        "instruction": {
+          "type": "string",
+          "description": "Injected instruction (for injected enforcement)"
+        }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "required": ["name", "transform"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "detect": { "$ref": "#/definitions/rule/properties/detect" },
+        "transform": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["remove_match", "replace", "inject"]
+            },
+            "replacement": { "type": "string" },
+            "template": { "type": "string" },
+            "position": {
+              "type": "string",
+              "enum": ["top", "bottom", "before_match", "after_match"]
+            }
+          },
+          "required": ["type"]
+        },
+        "action": { "type": "string", "const": "transform" },
+        "severity": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "index": {
+          "type": "string",
+          "description": "One-line description (Tier 0)"
+        },
+        "schema": {
+          "type": "object",
+          "description": "Typed inputs/outputs (Tier 1)"
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Full how-to (Tier 2)"
+        },
+        "dispatch": {
+          "type": "object",
+          "description": "Execution config (Tier 3)"
+        }
+      }
+    },
+    "knowledge": {
+      "type": "object",
+      "required": ["name", "content"],
+      "properties": {
+        "name": { "type": "string" },
+        "trigger": {
+          "type": "string",
+          "description": "When to load this knowledge"
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Loading priority (higher = first)"
+        },
+        "content": {
+          "type": "string",
+          "description": "The knowledge content"
+        }
+      }
+    }
+  }
+}

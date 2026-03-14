@@ -1,0 +1,265 @@
+aim: "1.0"
+
+metadata:
+  name: nodejs-production
+  version: 1.0.0
+  description: "Node.js production server best practices"
+  tags: [nodejs, javascript, typescript, backend, production]
+  license: MIT
+
+context:
+  persona: "Node.js developer building production services"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Security ──
+
+    - name: no-eval-function
+      description: "Prevent eval() and similar dynamic execution"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b(eval|Function)\\s*\\("
+        file_types: [js, ts, mjs]
+      action: block
+      severity: critical
+      message: "eval() and Function() are security risks."
+      fix_hint: "Use JSON.parse() for data, avoid dynamic code execution"
+
+    - name: no-child-process-shell
+      description: "Avoid shell injection in child processes"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(exec|execSync)\\s*\\([^)]*\\$\\{"
+        file_types: [js, ts, mjs]
+      action: block
+      severity: critical
+      message: "Shell command with interpolation is dangerous."
+      fix_hint: "Use execFile/spawn with array arguments"
+
+    - name: validate-user-input
+      description: "Validate all user input"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check input validation:
+          - Use Zod, Joi, or similar for validation
+          - Validate at API boundaries
+          - Sanitize before database queries
+          - Don't trust any user input
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Ensure user input is validated."
+
+    # ── Error Handling ──
+
+    - name: handle-async-errors
+      description: "Handle async errors properly"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check async error handling:
+          - Use try/catch in async functions
+          - Handle promise rejections
+          - Use global unhandledRejection handler
+          - Don't swallow errors silently
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Ensure async errors are handled."
+
+    - name: graceful-shutdown
+      description: "Implement graceful shutdown"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check shutdown handling:
+          - Listen for SIGTERM and SIGINT
+          - Stop accepting new connections
+          - Wait for existing requests to complete
+          - Close database connections
+          - Set shutdown timeout
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Implement graceful shutdown handling."
+
+    # ── Performance ──
+
+    - name: avoid-sync-methods
+      description: "Avoid sync methods in request handlers"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(readFileSync|writeFileSync|readdirSync|existsSync)\\s*\\("
+        file_types: [js, ts, mjs]
+      action: warn
+      severity: warning
+      message: "Sync methods block the event loop."
+      fix_hint: "Use async versions: readFile, writeFile, etc."
+
+    - name: stream-large-data
+      description: "Stream large files/data"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check data handling:
+          - Stream large files instead of loading to memory
+          - Use pipeline() for stream chaining
+          - Handle backpressure correctly
+          - Consider chunked responses
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider streaming for large data."
+
+    # ── Logging & Monitoring ──
+
+    - name: structured-logging
+      description: "Use structured logging"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Logging best practices:
+        - Use structured logging (JSON format)
+        - Include correlation IDs for tracing
+        - Log at appropriate levels (debug, info, warn, error)
+        - Don't log sensitive data (passwords, tokens)
+        - Use pino or winston for production
+      action: log
+      severity: info
+
+    - name: health-check-endpoint
+      description: "Implement health check endpoints"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check health endpoints:
+          - /health or /healthz for liveness
+          - /ready for readiness
+          - Check database connectivity
+          - Check dependent service connectivity
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Implement health check endpoints."
+
+  quality_gates:
+    code:
+      require_types: strict
+      require_error_handling: true
+      max_file_length: 400
+
+knowledge:
+  - name: node-patterns
+    trigger: "building servers or handling requests"
+    priority: 100
+    content: |
+      ## Node.js Production Patterns
+
+      ### Graceful Shutdown
+      ```typescript
+      const server = app.listen(3000);
+
+      const shutdown = async (signal: string) => {
+        console.log(`${signal} received, shutting down gracefully`);
+
+        server.close(() => {
+          console.log('HTTP server closed');
+        });
+
+        // Close database connections
+        await db.end();
+
+        process.exit(0);
+      };
+
+      process.on('SIGTERM', () => shutdown('SIGTERM'));
+      process.on('SIGINT', () => shutdown('SIGINT'));
+
+      // Handle uncaught errors
+      process.on('unhandledRejection', (reason, promise) => {
+        console.error('Unhandled Rejection:', reason);
+      });
+      ```
+
+      ### Error Handling Middleware
+      ```typescript
+      app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+        const requestId = req.headers['x-request-id'];
+
+        logger.error({
+          requestId,
+          error: err.message,
+          stack: err.stack,
+          path: req.path,
+          method: req.method
+        });
+
+        res.status(500).json({
+          error: 'Internal Server Error',
+          requestId
+        });
+      });
+      ```
+
+  - name: node-security
+    trigger: "handling user input or authentication"
+    priority: 90
+    content: |
+      ## Node.js Security
+
+      ### Input Validation with Zod
+      ```typescript
+      import { z } from 'zod';
+
+      const CreateUserSchema = z.object({
+        email: z.string().email(),
+        password: z.string().min(8),
+        name: z.string().min(1).max(100)
+      });
+
+      app.post('/users', async (req, res) => {
+        const result = CreateUserSchema.safeParse(req.body);
+        if (!result.success) {
+          return res.status(400).json({ errors: result.error.issues });
+        }
+        // Use result.data safely
+      });
+      ```
+
+      ### Rate Limiting
+      ```typescript
+      import rateLimit from 'express-rate-limit';
+
+      const limiter = rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 100, // limit per IP
+        standardHeaders: true,
+        legacyHeaders: false
+      });
+
+      app.use('/api', limiter);
+      ```

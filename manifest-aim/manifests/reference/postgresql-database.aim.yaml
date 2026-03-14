@@ -1,0 +1,226 @@
+aim: "1.0"
+
+metadata:
+  name: postgresql-database
+  version: 1.0.0
+  description: "PostgreSQL database design and query best practices"
+  tags: [postgresql, database, sql, performance, security]
+  license: MIT
+
+context:
+  persona: "Database engineer building PostgreSQL systems"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Query Safety ──
+
+    - name: prevent-sql-injection
+      description: "Prevent SQL injection vulnerabilities"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(\\$\\{|\\+\\s*['\"]|['\"]\\s*\\+|format\\s*\\(.*%s)"
+        file_types: [sql, ts, js, py]
+      action: block
+      severity: critical
+      message: "Potential SQL injection vulnerability."
+      fix_hint: "Use parameterized queries ($1, $2) or prepared statements"
+
+    - name: no-select-star
+      description: "Avoid SELECT * in production queries"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "SELECT\\s+\\*\\s+FROM"
+        file_types: [sql]
+      action: warn
+      severity: warning
+      message: "SELECT * is inefficient and fragile."
+      fix_hint: "Explicitly list required columns"
+
+    - name: require-where-on-update-delete
+      description: "UPDATE/DELETE must have WHERE clause"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(UPDATE|DELETE)\\s+[^;]+(?<!WHERE\\s+[^;]+);?"
+        file_types: [sql]
+      action: warn
+      severity: critical
+      message: "UPDATE/DELETE without WHERE affects all rows."
+      fix_hint: "Add a WHERE clause to limit affected rows"
+
+    # ── Index Design ──
+
+    - name: index-foreign-keys
+      description: "Foreign keys should have indexes"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check index coverage:
+          - All foreign key columns should be indexed
+          - Consider composite indexes for multi-column queries
+          - Verify indexes are used by common queries
+          - Watch for unused indexes
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Foreign key may need an index."
+
+    # ── Schema Design ──
+
+    - name: use-uuid-primary-keys
+      description: "Consider UUID for distributed systems"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Primary key considerations:
+        - Use BIGSERIAL for simple applications
+        - Use UUID (gen_random_uuid()) for distributed systems
+        - Never expose sequential IDs externally
+        - Consider ULID for sortable unique IDs
+      action: log
+      severity: info
+
+    - name: timestamp-columns
+      description: "Include audit timestamps"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Tables should include:
+          - created_at TIMESTAMPTZ DEFAULT now()
+          - updated_at TIMESTAMPTZ (with trigger)
+          - Consider soft delete with deleted_at
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider adding audit timestamp columns."
+
+    # ── Performance ──
+
+    - name: avoid-n-plus-one
+      description: "Detect N+1 query patterns"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Watch for N+1 patterns:
+          - Queries in loops should be batched
+          - Use JOINs or subqueries instead
+          - Consider EXISTS over COUNT
+          - Use LATERAL for correlated subqueries
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Potential N+1 query pattern detected."
+
+    - name: limit-results
+      description: "Large result sets should be paginated"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check for unbounded queries:
+          - Use LIMIT for user-facing queries
+          - Implement cursor-based pagination
+          - Consider streaming for large exports
+          - Use keyset pagination over OFFSET
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider pagination for large result sets."
+
+    # ── Migration Safety ──
+
+    - name: safe-migrations
+      description: "Database migrations should be safe"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Safe migration practices:
+        - Always have up and down migrations
+        - Avoid locking operations (ALTER TABLE on large tables)
+        - Use CREATE INDEX CONCURRENTLY
+        - Add columns as nullable first
+        - Backfill data separately from schema changes
+        - Test migrations on production-sized data
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_types: false
+      require_error_handling: true
+
+knowledge:
+  - name: pg-patterns
+    trigger: "writing queries, designing schema, or optimizing performance"
+    priority: 100
+    content: |
+      ## PostgreSQL Best Practices
+
+      ### Query Optimization
+      ```sql
+      -- Use EXPLAIN ANALYZE
+      EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
+      SELECT * FROM users WHERE email = 'test@example.com';
+
+      -- Prefer EXISTS over COUNT
+      SELECT EXISTS(SELECT 1 FROM users WHERE status = 'active');
+
+      -- Use CTEs for readability (but watch for optimization barriers)
+      WITH active_users AS (
+        SELECT * FROM users WHERE status = 'active'
+      )
+      SELECT * FROM active_users WHERE created_at > now() - interval '7 days';
+      ```
+
+      ### Index Strategies
+      ```sql
+      -- Partial indexes for common filters
+      CREATE INDEX idx_users_active ON users(email) WHERE status = 'active';
+
+      -- Covering indexes
+      CREATE INDEX idx_users_lookup ON users(email) INCLUDE (name, avatar_url);
+
+      -- GIN for array/JSONB
+      CREATE INDEX idx_posts_tags ON posts USING GIN(tags);
+      ```
+
+  - name: pg-security
+    trigger: "handling user data or access control"
+    priority: 90
+    content: |
+      ## PostgreSQL Security
+
+      ### Row Level Security
+      ```sql
+      ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+
+      CREATE POLICY user_documents ON documents
+        FOR ALL TO authenticated
+        USING (user_id = current_setting('app.current_user_id')::uuid);
+      ```
+
+      ### Prepared Statements
+      ```sql
+      PREPARE user_by_email (text) AS
+        SELECT id, name FROM users WHERE email = $1;
+
+      EXECUTE user_by_email('test@example.com');
+      ```

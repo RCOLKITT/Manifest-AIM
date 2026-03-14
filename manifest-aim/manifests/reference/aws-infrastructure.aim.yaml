@@ -1,0 +1,221 @@
+aim: "1.0"
+
+metadata:
+  name: aws-infrastructure
+  version: 1.0.0
+  description: "AWS infrastructure safety and best practices (IaC focus)"
+  tags: [aws, infrastructure, terraform, cdk, devops, security]
+  license: MIT
+
+context:
+  persona: "Cloud/DevOps engineer managing AWS infrastructure"
+  domain: devops
+  environment: production
+
+governance:
+  rules:
+    # ── Security ──
+
+    - name: no-public-s3
+      description: "S3 buckets should not be public by default"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "block_public_acls\\s*=\\s*false|PublicAccessBlockConfiguration.*BlockPublicAcls.*false"
+        file_types: [tf, json, yaml, ts]
+      action: block
+      severity: critical
+      message: "S3 bucket public access should be blocked."
+      fix_hint: "Enable block_public_acls, block_public_policy, ignore_public_acls, restrict_public_buckets"
+
+    - name: encrypt-at-rest
+      description: "Storage must be encrypted at rest"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if storage resources enable encryption:
+          - S3 buckets should have server-side encryption
+          - EBS volumes should be encrypted
+          - RDS instances should have storage encryption
+          - Secrets Manager should be used for secrets
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Storage resource may not be encrypted at rest."
+      fix_hint: "Enable encryption with KMS keys"
+
+    - name: no-hardcoded-credentials
+      description: "No hardcoded AWS credentials"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(AKIA|ABIA|ACCA|ASIA)[A-Z0-9]{16}|aws_secret_access_key\\s*=\\s*['\"][^'\"]{20,}"
+      action: block
+      severity: critical
+      message: "Hardcoded AWS credentials detected."
+      fix_hint: "Use IAM roles, instance profiles, or AWS Secrets Manager"
+
+    - name: require-https
+      description: "Load balancers must use HTTPS"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "protocol\\s*=\\s*['\"]HTTP['\"](?!S)"
+        file_types: [tf, json, yaml, ts]
+      action: warn
+      severity: warning
+      message: "Use HTTPS for external-facing load balancers."
+
+    # ── Cost Optimization ──
+
+    - name: tag-resources
+      description: "All resources must be tagged"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check if AWS resources have required tags:
+          - Environment (dev/staging/prod)
+          - Team or Owner
+          - Project or Application
+          - Cost Center (if applicable)
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Resource should have required tags for cost tracking."
+
+    - name: no-oversized-instances
+      description: "Review large instance sizes"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "instance_type\\s*=\\s*['\"].*\\.(xlarge|2xlarge|4xlarge|8xlarge|16xlarge)"
+        file_types: [tf, json, yaml, ts]
+      action: warn
+      severity: info
+      message: "Large instance size detected. Ensure it's justified."
+
+    # ── High Availability ──
+
+    - name: multi-az-database
+      description: "Production databases should be Multi-AZ"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "multi_az\\s*=\\s*false"
+        file_types: [tf, json, yaml, ts]
+      action: warn
+      severity: warning
+      message: "Production RDS should use Multi-AZ for high availability."
+
+    # ── Monitoring ──
+
+    - name: enable-cloudwatch-alarms
+      description: "Critical resources need CloudWatch alarms"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Set up CloudWatch alarms for:
+        - EC2: CPU > 80%, StatusCheck failures
+        - RDS: CPU > 80%, FreeStorageSpace < 20%, Connections > 80%
+        - Lambda: Errors > 0, Duration > threshold
+        - ALB: 5XX errors > threshold, latency p99 > threshold
+        - SQS: ApproximateAgeOfOldestMessage > threshold
+      action: log
+      severity: info
+
+    # ── Compliance ──
+
+    - name: enable-cloudtrail
+      description: "CloudTrail should be enabled"
+      category: compliance
+      enforcement: injected
+      instruction: |
+        Ensure CloudTrail is configured:
+        - Multi-region trail enabled
+        - S3 bucket for logs with versioning
+        - Log file validation enabled
+        - Integration with CloudWatch Logs for alerting
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_error_handling: true
+
+knowledge:
+  - name: aws-well-architected
+    trigger: "designing infrastructure or reviewing architecture"
+    priority: 100
+    content: |
+      ## AWS Well-Architected Framework
+
+      ### Security Pillar
+      - Use IAM roles, not access keys
+      - Enable MFA for root and privileged users
+      - Encrypt data at rest and in transit
+      - Use security groups and NACLs as defense in depth
+      - Enable VPC Flow Logs and CloudTrail
+
+      ### Reliability Pillar
+      - Multi-AZ deployments
+      - Auto-scaling for variable load
+      - Health checks and self-healing
+      - Backup and disaster recovery
+
+      ### Performance Pillar
+      - Right-size instances
+      - Use caching (ElastiCache, CloudFront)
+      - Consider serverless for variable workloads
+
+      ### Cost Pillar
+      - Tag all resources
+      - Use Reserved/Spot instances for predictable workloads
+      - Set up billing alerts
+      - Review and clean up unused resources
+
+  - name: terraform-patterns
+    trigger: "writing terraform or infrastructure code"
+    priority: 90
+    content: |
+      ## Terraform Best Practices
+
+      ### State Management
+      - Use remote state (S3 + DynamoDB)
+      - Enable state locking
+      - Use workspaces for environments
+
+      ### Module Structure
+      ```
+      modules/
+        vpc/
+          main.tf
+          variables.tf
+          outputs.tf
+        rds/
+          ...
+      environments/
+        dev/
+          main.tf
+        prod/
+          main.tf
+      ```
+
+      ### Naming Convention
+      - Use consistent prefixes: ${project}-${env}-${resource}
+      - Example: myapp-prod-api-alb
+
+      ### Security
+      - Use data sources for existing resources
+      - Never store secrets in state (use aws_secretsmanager_secret)
+      - Use terraform-docs for documentation

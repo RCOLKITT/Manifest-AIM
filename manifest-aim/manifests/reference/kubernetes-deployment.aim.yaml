@@ -1,0 +1,237 @@
+aim: "1.0"
+
+metadata:
+  name: kubernetes-deployment
+  version: 1.0.0
+  description: "Kubernetes deployment and operations best practices"
+  tags: [kubernetes, k8s, containers, devops, infrastructure]
+  license: MIT
+
+context:
+  persona: "Platform engineer deploying to Kubernetes"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Security ──
+
+    - name: no-privileged-containers
+      description: "Don't run containers as privileged"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "privileged:\\s*true"
+        file_types: [yaml, yml]
+      action: block
+      severity: critical
+      message: "Privileged containers bypass security boundaries."
+      fix_hint: "Remove privileged: true, use specific capabilities if needed"
+
+    - name: no-root-user
+      description: "Don't run containers as root"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "runAsUser:\\s*0"
+        file_types: [yaml, yml]
+      action: warn
+      severity: warning
+      message: "Containers should not run as root."
+      fix_hint: "Set runAsUser to a non-root UID (1000+)"
+
+    - name: require-security-context
+      description: "Pods should have security context"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check security context:
+          - Set runAsNonRoot: true
+          - Set readOnlyRootFilesystem: true
+          - Drop all capabilities, add only needed
+          - Set allowPrivilegeEscalation: false
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Add security context to harden the container."
+
+    - name: no-latest-tag
+      description: "Don't use 'latest' image tag"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "image:\\s*[^:]+:latest|image:\\s*[^:]+[^:]$"
+        file_types: [yaml, yml]
+      action: warn
+      severity: warning
+      message: "Use explicit image tags for reproducibility."
+      fix_hint: "Pin to specific version (e.g., v1.2.3 or sha256 digest)"
+
+    # ── Resource Management ──
+
+    - name: require-resource-limits
+      description: "Containers must have resource limits"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check resource configuration:
+          - Must have resources.limits.cpu
+          - Must have resources.limits.memory
+          - Should have resources.requests
+          - Limits should be reasonable for workload
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Set resource limits to prevent resource exhaustion."
+
+    - name: require-probes
+      description: "Deployments should have health probes"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check health probes:
+          - Must have livenessProbe
+          - Must have readinessProbe
+          - Consider startupProbe for slow-starting apps
+          - Probe timeouts should be reasonable
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Add health probes for reliable orchestration."
+
+    # ── High Availability ──
+
+    - name: multiple-replicas
+      description: "Production deployments need multiple replicas"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check availability:
+          - Production should have replicas >= 2
+          - Consider pod disruption budgets
+          - Use anti-affinity for spread across nodes
+          - Consider topology spread constraints
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider multiple replicas for high availability."
+
+    # ── Secrets Management ──
+
+    - name: no-secrets-in-yaml
+      description: "Don't hardcode secrets in manifests"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(password|secret|api_key|token):\\s*['\"]?[a-zA-Z0-9+/=]{8,}"
+        file_types: [yaml, yml]
+      action: block
+      severity: critical
+      message: "Secrets should not be in plain YAML files."
+      fix_hint: "Use Kubernetes Secrets, External Secrets Operator, or Vault"
+
+  quality_gates:
+    code:
+      require_error_handling: true
+
+knowledge:
+  - name: k8s-security
+    trigger: "deploying services or configuring pods"
+    priority: 100
+    content: |
+      ## Kubernetes Security Checklist
+
+      ### Pod Security Standards
+      ```yaml
+      spec:
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1000
+          fsGroup: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        containers:
+        - name: app
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      ```
+
+      ### Network Policies
+      ```yaml
+      apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      metadata:
+        name: allow-web-traffic
+      spec:
+        podSelector:
+          matchLabels:
+            app: web
+        ingress:
+        - from:
+          - podSelector:
+              matchLabels:
+                app: frontend
+          ports:
+          - port: 8080
+      ```
+
+  - name: k8s-reliability
+    trigger: "configuring deployments or handling failures"
+    priority: 90
+    content: |
+      ## Kubernetes Reliability
+
+      ### Health Probes
+      ```yaml
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 8080
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        failureThreshold: 3
+      readinessProbe:
+        httpGet:
+          path: /ready
+          port: 8080
+        initialDelaySeconds: 5
+        periodSeconds: 5
+      startupProbe:
+        httpGet:
+          path: /healthz
+          port: 8080
+        failureThreshold: 30
+        periodSeconds: 10
+      ```
+
+      ### Pod Disruption Budget
+      ```yaml
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: app-pdb
+      spec:
+        minAvailable: 1
+        selector:
+          matchLabels:
+            app: web
+      ```

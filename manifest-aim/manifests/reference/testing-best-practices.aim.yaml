@@ -1,0 +1,268 @@
+aim: "1.0"
+
+metadata:
+  name: testing-best-practices
+  version: 1.0.0
+  description: "Software testing best practices and patterns"
+  tags: [testing, unit-tests, integration-tests, tdd, quality]
+  license: MIT
+
+context:
+  persona: "Software engineer writing reliable tests"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Test Quality ──
+
+    - name: descriptive-test-names
+      description: "Tests should have descriptive names"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check test naming:
+          - Names should describe expected behavior
+          - Use "should" or "when/then" patterns
+          - Avoid generic names like "test1"
+          - Group related tests with describe blocks
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Test names should describe expected behavior."
+
+    - name: single-assertion-focus
+      description: "Tests should have a single focus"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check test focus:
+          - Each test should verify one behavior
+          - Multiple assertions OK if testing same thing
+          - Long tests may need to be split
+          - Avoid testing implementation details
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider if test has a single clear focus."
+
+    - name: avoid-test-interdependence
+      description: "Tests should be independent"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check test isolation:
+          - Tests should not depend on run order
+          - Each test should set up its own state
+          - Use beforeEach, not shared mutable state
+          - Clean up after tests (afterEach)
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Tests should be independent."
+
+    # ── Mocking ──
+
+    - name: mock-boundaries
+      description: "Mock at system boundaries"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check mocking practices:
+          - Mock external services, not internal logic
+          - Prefer dependency injection over patching
+          - Don't mock what you don't own (use fakes)
+          - Reset mocks between tests
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Review mocking approach."
+
+    - name: avoid-snapshot-overuse
+      description: "Use snapshots sparingly"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check snapshot usage:
+          - Snapshots are hard to review
+          - Prefer explicit assertions
+          - Use snapshots for stable, visual output
+          - Keep snapshots small and focused
+        model: fast
+        threshold: 0.7
+      action: warn
+      severity: info
+      message: "Consider explicit assertions over snapshots."
+
+    # ── Coverage ──
+
+    - name: meaningful-coverage
+      description: "Coverage should be meaningful"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Coverage best practices:
+        - Don't chase 100% coverage blindly
+        - Focus on critical paths and edge cases
+        - Test behavior, not implementation
+        - Some code isn't worth testing
+        - Low coverage in new code is a red flag
+      action: log
+      severity: info
+
+    # ── Test Types ──
+
+    - name: test-pyramid
+      description: "Follow the test pyramid"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Test pyramid:
+        - Many unit tests (fast, isolated)
+        - Fewer integration tests (real dependencies)
+        - Even fewer E2E tests (slow, flaky)
+        - Each level tests different concerns
+      action: log
+      severity: info
+
+    # ── Anti-patterns ──
+
+    - name: no-test-logic
+      description: "Avoid logic in tests"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(it|test)\\s*\\([^)]+\\)\\s*\\{[^}]*(if|for|while|switch)\\s*\\("
+        file_types: [ts, js, tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Avoid conditionals/loops in tests."
+      fix_hint: "Use parameterized tests or separate test cases"
+
+    - name: no-empty-assertions
+      description: "Tests must have assertions"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check for assertions:
+          - Every test should have expect() or assert
+          - Mock calls should be verified
+          - Async tests should await properly
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Test may be missing assertions."
+
+  quality_gates:
+    code:
+      require_types: strict
+
+knowledge:
+  - name: test-patterns
+    trigger: "writing tests or test utilities"
+    priority: 100
+    content: |
+      ## Testing Patterns
+
+      ### Arrange-Act-Assert
+      ```typescript
+      test('should add items to cart', () => {
+        // Arrange
+        const cart = new Cart();
+        const product = { id: '1', price: 10 };
+
+        // Act
+        cart.add(product);
+
+        // Assert
+        expect(cart.items).toHaveLength(1);
+        expect(cart.total).toBe(10);
+      });
+      ```
+
+      ### Parameterized Tests
+      ```typescript
+      test.each([
+        [1, 1, 2],
+        [2, 2, 4],
+        [0, 5, 5],
+      ])('add(%i, %i) returns %i', (a, b, expected) => {
+        expect(add(a, b)).toBe(expected);
+      });
+      ```
+
+      ### Test Factories
+      ```typescript
+      function createUser(overrides?: Partial<User>): User {
+        return {
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test User',
+          ...overrides
+        };
+      }
+
+      test('greets user by name', () => {
+        const user = createUser({ name: 'Alice' });
+        expect(greet(user)).toBe('Hello, Alice!');
+      });
+      ```
+
+  - name: test-async
+    trigger: "testing async code or promises"
+    priority: 90
+    content: |
+      ## Async Testing
+
+      ### Async/Await
+      ```typescript
+      test('fetches user data', async () => {
+        const user = await fetchUser('123');
+        expect(user.name).toBe('Alice');
+      });
+      ```
+
+      ### Testing Errors
+      ```typescript
+      test('throws on invalid input', async () => {
+        await expect(fetchUser('')).rejects.toThrow('Invalid ID');
+      });
+      ```
+
+      ### Fake Timers
+      ```typescript
+      test('debounces calls', () => {
+        jest.useFakeTimers();
+
+        const callback = jest.fn();
+        const debounced = debounce(callback, 100);
+
+        debounced();
+        debounced();
+        debounced();
+
+        expect(callback).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(100);
+
+        expect(callback).toHaveBeenCalledTimes(1);
+      });
+      ```

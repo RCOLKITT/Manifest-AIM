@@ -1,0 +1,266 @@
+aim: "1.0"
+
+metadata:
+  name: swift-ios
+  version: 1.0.0
+  description: "Swift and iOS development best practices"
+  tags: [swift, ios, apple, mobile, xcode]
+  license: MIT
+
+context:
+  persona: "iOS developer building production apps"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Memory Safety ──
+
+    - name: avoid-retain-cycles
+      description: "Prevent retain cycles"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check memory management:
+          - Use [weak self] in closures
+          - Use [unowned self] carefully
+          - Break delegate cycles with weak
+          - Check for circular references
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Potential retain cycle."
+
+    - name: avoid-force-unwrap
+      description: "Avoid force unwrapping"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "[a-zA-Z_][a-zA-Z0-9_]*!"
+        file_types: [swift]
+      action: warn
+      severity: warning
+      message: "Force unwrap can crash."
+      fix_hint: "Use if let, guard let, or nil coalescing"
+
+    # ── Concurrency ──
+
+    - name: main-thread-ui
+      description: "UI updates on main thread"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check threading:
+          - UI updates must be on main thread
+          - Use @MainActor for UI classes
+          - Use DispatchQueue.main.async
+          - Mark completion handlers appropriately
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "UI updates should be on main thread."
+
+    - name: async-await-usage
+      description: "Prefer async/await over callbacks"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check async patterns:
+          - Use async/await for new code
+          - Use Task for async contexts
+          - Handle cancellation properly
+          - Use actors for shared mutable state
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider using async/await."
+
+    # ── Security ──
+
+    - name: keychain-for-secrets
+      description: "Use Keychain for sensitive data"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check data storage:
+          - Store credentials in Keychain
+          - Don't use UserDefaults for secrets
+          - Use data protection for sensitive files
+          - Clear sensitive data appropriately
+        model: fast
+        threshold: 0.9
+      action: warn
+      severity: warning
+      message: "Use Keychain for sensitive data."
+
+    - name: certificate-pinning
+      description: "Consider certificate pinning"
+      category: security
+      enforcement: injected
+      instruction: |
+        Network security:
+        - Consider certificate pinning for sensitive APIs
+        - Use ATS (App Transport Security)
+        - Validate server certificates
+        - Handle certificate rotation
+      action: log
+      severity: info
+
+    # ── SwiftUI ──
+
+    - name: view-composition
+      description: "Keep views small and focused"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check view structure:
+          - Extract complex views into components
+          - Use ViewBuilder for conditional views
+          - Keep views under 100 lines
+          - Separate logic into ViewModels
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider breaking down large views."
+
+    - name: observable-patterns
+      description: "Use proper state management"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check state management:
+          - Use @State for view-local state
+          - Use @ObservedObject/@StateObject correctly
+          - Use @Environment for dependency injection
+          - Consider @Observable macro (iOS 17+)
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Review state management."
+
+  quality_gates:
+    code:
+      require_types: strict
+      max_file_length: 400
+
+knowledge:
+  - name: swift-patterns
+    trigger: "writing Swift code or iOS features"
+    priority: 100
+    content: |
+      ## Swift Patterns
+
+      ### Safe Unwrapping
+      ```swift
+      // Guard let
+      guard let user = currentUser else {
+          return
+      }
+
+      // If let with multiple bindings
+      if let name = user.name,
+         let email = user.email {
+          display(name: name, email: email)
+      }
+
+      // Nil coalescing
+      let displayName = user.name ?? "Anonymous"
+      ```
+
+      ### Async/Await
+      ```swift
+      func fetchUser() async throws -> User {
+          let (data, _) = try await URLSession.shared.data(from: url)
+          return try JSONDecoder().decode(User.self, from: data)
+      }
+
+      // Usage
+      Task {
+          do {
+              let user = try await fetchUser()
+              await MainActor.run {
+                  self.user = user
+              }
+          } catch {
+              // Handle error
+          }
+      }
+      ```
+
+      ### Weak Self in Closures
+      ```swift
+      fetchData { [weak self] result in
+          guard let self else { return }
+          self.handle(result)
+      }
+      ```
+
+  - name: swiftui-patterns
+    trigger: "building SwiftUI views"
+    priority: 90
+    content: |
+      ## SwiftUI Patterns
+
+      ### MVVM
+      ```swift
+      @Observable
+      class UserViewModel {
+          var user: User?
+          var isLoading = false
+
+          func load() async {
+              isLoading = true
+              user = try? await api.fetchUser()
+              isLoading = false
+          }
+      }
+
+      struct UserView: View {
+          @State private var viewModel = UserViewModel()
+
+          var body: some View {
+              Group {
+                  if viewModel.isLoading {
+                      ProgressView()
+                  } else if let user = viewModel.user {
+                      UserContent(user: user)
+                  }
+              }
+              .task {
+                  await viewModel.load()
+              }
+          }
+      }
+      ```
+
+      ### Dependency Injection
+      ```swift
+      struct APIClientKey: EnvironmentKey {
+          static let defaultValue: APIClient = LiveAPIClient()
+      }
+
+      extension EnvironmentValues {
+          var apiClient: APIClient {
+              get { self[APIClientKey.self] }
+              set { self[APIClientKey.self] = newValue }
+          }
+      }
+      ```

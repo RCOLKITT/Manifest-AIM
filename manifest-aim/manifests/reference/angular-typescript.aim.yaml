@@ -1,0 +1,264 @@
+aim: "1.0"
+
+metadata:
+  name: angular-typescript
+  version: 1.0.0
+  description: "Angular with TypeScript best practices"
+  tags: [angular, typescript, frontend, rxjs, signals]
+  license: MIT
+
+context:
+  persona: "Angular developer building production applications"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Type Safety ──
+
+    - name: strict-templates
+      description: "Enable strict template type checking"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check Angular configuration:
+          - strictTemplates: true in tsconfig
+          - strictInjectionParameters: true
+          - Use typed forms (FormGroup<T>)
+          - Type HTTP responses
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Enable strict template checking."
+
+    - name: typed-http-responses
+      description: "Type HTTP responses"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check HTTP usage:
+          - Use HttpClient.get<T>()
+          - Define response interfaces
+          - Handle error responses
+          - Use interceptors for common handling
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Type HTTP responses."
+
+    # ── RxJS ──
+
+    - name: unsubscribe-observables
+      description: "Unsubscribe from observables"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check subscription management:
+          - Use async pipe in templates
+          - Use takeUntilDestroyed() (Angular 16+)
+          - Unsubscribe in ngOnDestroy
+          - Use take(1) for single values
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Manage observable subscriptions."
+
+    - name: avoid-subscribe
+      description: "Prefer async pipe over subscribe"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check subscription patterns:
+          - Use async pipe when possible
+          - Compose observables with operators
+          - Avoid nested subscribes
+          - Use signals for simpler cases
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider async pipe or signals."
+
+    # ── Signals ──
+
+    - name: use-signals
+      description: "Consider signals for reactivity"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Angular Signals (v16+):
+        - Use signal() for simple reactive state
+        - Use computed() for derived values
+        - Use effect() for side effects
+        - Simpler than BehaviorSubject for many cases
+        - Better change detection performance
+      action: log
+      severity: info
+
+    # ── Component Design ──
+
+    - name: smart-dumb-components
+      description: "Separate smart and presentational components"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check component design:
+          - Container components handle data/state
+          - Presentational components use @Input/@Output
+          - Keep presentational components pure
+          - Use OnPush change detection
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider smart/dumb component pattern."
+
+    - name: onpush-change-detection
+      description: "Use OnPush change detection"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check change detection:
+          - Use ChangeDetectionStrategy.OnPush
+          - Immutable data patterns
+          - Use async pipe for observables
+          - Use signals for automatic detection
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider OnPush change detection."
+
+    # ── Security ──
+
+    - name: sanitize-html
+      description: "Sanitize dynamic HTML"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check HTML handling:
+          - Don't bypass sanitizer without reason
+          - Use [innerHTML] carefully
+          - Validate user-provided URLs
+          - Use DomSanitizer when needed
+        model: fast
+        threshold: 0.9
+      action: warn
+      severity: warning
+      message: "Ensure HTML is sanitized."
+
+  quality_gates:
+    code:
+      require_types: strict
+      max_file_length: 300
+
+knowledge:
+  - name: angular-patterns
+    trigger: "building Angular components or services"
+    priority: 100
+    content: |
+      ## Angular Patterns
+
+      ### Typed Forms
+      ```typescript
+      interface LoginForm {
+        email: FormControl<string>;
+        password: FormControl<string>;
+      }
+
+      const form = new FormGroup<LoginForm>({
+        email: new FormControl('', {
+          nonNullable: true,
+          validators: [Validators.required, Validators.email]
+        }),
+        password: new FormControl('', {
+          nonNullable: true,
+          validators: [Validators.required, Validators.minLength(8)]
+        })
+      });
+
+      // Type-safe access
+      const email: string = form.controls.email.value;
+      ```
+
+      ### Signals
+      ```typescript
+      @Component({
+        template: `
+          <p>Count: {{ count() }}</p>
+          <p>Double: {{ double() }}</p>
+          <button (click)="increment()">+</button>
+        `
+      })
+      export class CounterComponent {
+        count = signal(0);
+        double = computed(() => this.count() * 2);
+
+        increment() {
+          this.count.update(n => n + 1);
+        }
+      }
+      ```
+
+  - name: angular-rxjs
+    trigger: "working with observables or data streams"
+    priority: 90
+    content: |
+      ## Angular RxJS Patterns
+
+      ### Subscription Management
+      ```typescript
+      @Component({...})
+      export class UserComponent {
+        // Angular 16+ with takeUntilDestroyed
+        private destroyRef = inject(DestroyRef);
+
+        user$ = this.userService.getUser().pipe(
+          takeUntilDestroyed(this.destroyRef)
+        );
+
+        // Or with async pipe (preferred)
+        // <div *ngIf="user$ | async as user">
+      }
+      ```
+
+      ### HTTP with Types
+      ```typescript
+      interface User {
+        id: string;
+        name: string;
+      }
+
+      @Injectable({ providedIn: 'root' })
+      export class UserService {
+        private http = inject(HttpClient);
+
+        getUser(id: string): Observable<User> {
+          return this.http.get<User>(`/api/users/${id}`).pipe(
+            catchError(this.handleError)
+          );
+        }
+
+        private handleError(error: HttpErrorResponse): Observable<never> {
+          console.error('API error:', error);
+          return throwError(() => new Error('Failed to load user'));
+        }
+      }
+      ```

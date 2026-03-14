@@ -1,0 +1,232 @@
+aim: "1.0"
+
+metadata:
+  name: react-native-mobile
+  version: 1.0.0
+  description: "React Native mobile app development best practices"
+  tags: [react-native, mobile, ios, android, typescript]
+  license: MIT
+
+context:
+  persona: "React Native developer building production mobile apps"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Performance ──
+
+    - name: avoid-inline-styles
+      description: "Avoid inline style objects"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "style=\\{\\s*\\{"
+        file_types: [tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Inline styles create new objects on every render."
+      fix_hint: "Use StyleSheet.create() or move styles outside component"
+
+    - name: use-flatlist
+      description: "Use FlatList for long lists"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check list rendering:
+          - Use FlatList or SectionList for lists > 10 items
+          - Avoid .map() for rendering long lists
+          - Use keyExtractor and getItemLayout for optimization
+          - Consider virtualization settings
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider using FlatList for better performance."
+
+    - name: optimize-images
+      description: "Optimize image usage"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check image optimization:
+          - Use appropriate image sizes (@1x, @2x, @3x)
+          - Consider react-native-fast-image for caching
+          - Use WebP format when possible
+          - Lazy load off-screen images
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider optimizing image loading."
+
+    - name: memoize-components
+      description: "Memoize expensive components"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check for unnecessary re-renders:
+          - List item components should use React.memo
+          - Use useMemo for expensive computations
+          - Use useCallback for handler functions passed as props
+          - Avoid passing new objects/arrays as props
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Consider memoization to prevent unnecessary re-renders."
+
+    # ── Security ──
+
+    - name: secure-storage
+      description: "Use secure storage for sensitive data"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check sensitive data storage:
+          - Use react-native-keychain or expo-secure-store
+          - Don't use AsyncStorage for sensitive data
+          - Encrypt data at rest if needed
+          - Clear sensitive data on logout
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Sensitive data may not be stored securely."
+      fix_hint: "Use react-native-keychain for credentials"
+
+    - name: no-hardcoded-secrets
+      description: "No hardcoded API keys"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(api_key|secret|password|token)\\s*[=:]\\s*['\"][^'\"]{8,}['\"]"
+        file_types: [ts, tsx, js, jsx]
+      action: block
+      severity: critical
+      message: "Hardcoded secret detected."
+      fix_hint: "Use react-native-config or expo-constants"
+
+    - name: certificate-pinning
+      description: "Consider certificate pinning for sensitive APIs"
+      category: security
+      enforcement: injected
+      instruction: |
+        For apps handling sensitive data:
+        - Implement SSL certificate pinning
+        - Use libraries like react-native-ssl-pinning
+        - Have a plan for certificate rotation
+        - Test certificate pinning failures gracefully
+      action: log
+      severity: info
+
+    # ── Navigation ──
+
+    - name: deep-link-validation
+      description: "Validate deep link parameters"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check deep link handling:
+          - Validate all parameters from deep links
+          - Don't trust deep link data implicitly
+          - Require authentication for sensitive screens
+          - Handle malformed deep links gracefully
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Deep link parameters should be validated."
+
+    # ── Error Handling ──
+
+    - name: global-error-boundary
+      description: "App should have error boundaries"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check error handling:
+          - App should have a top-level error boundary
+          - Critical screens should have individual boundaries
+          - Errors should be logged to crash reporting
+          - User should see friendly error message
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Consider adding error boundaries."
+
+  quality_gates:
+    code:
+      require_types: strict
+      require_error_handling: true
+      max_file_length: 300
+
+knowledge:
+  - name: rn-performance
+    trigger: "optimizing performance or fixing lag issues"
+    priority: 100
+    content: |
+      ## React Native Performance
+
+      ### Common Issues
+      1. **Re-renders**: Use React.memo, useMemo, useCallback
+      2. **Large Lists**: FlatList with keyExtractor, getItemLayout
+      3. **Images**: Proper sizing, caching, lazy loading
+      4. **JS Thread**: Move heavy work to native or background
+
+      ### Optimization Checklist
+      - [ ] Use FlatList for lists > 10 items
+      - [ ] Memoize list item components
+      - [ ] Use StyleSheet.create()
+      - [ ] Optimize images for each density
+      - [ ] Avoid inline functions in render
+      - [ ] Use Hermes engine
+      - [ ] Profile with Flipper
+
+  - name: rn-project-structure
+    trigger: "organizing code or starting new features"
+    priority: 90
+    content: |
+      ## React Native Project Structure
+
+      ```
+      /src
+        /api            # API clients
+        /components     # Reusable components
+          /ui           # Basic UI components
+          /forms        # Form components
+        /hooks          # Custom hooks
+        /navigation     # Navigation setup
+        /screens        # Screen components
+        /services       # Business logic
+        /store          # State management
+        /theme          # Colors, fonts, spacing
+        /utils          # Utility functions
+        /types          # TypeScript types
+      /assets           # Images, fonts
+      ```
+
+      ### Screen Organization
+      ```
+      /screens
+        /Home
+          HomeScreen.tsx
+          HomeScreen.styles.ts
+          components/
+          hooks/
+      ```

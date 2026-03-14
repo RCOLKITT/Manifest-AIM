@@ -1,8 +1,27 @@
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
+import { execSync } from "node:child_process";
 import chalk from "chalk";
 import { enforce } from "../../enforce/engine.js";
 import type { Violation, EnforceSummary } from "../../enforce/types.js";
+
+/**
+ * Get list of staged files from git.
+ */
+function getStagedFiles(): string[] {
+  try {
+    const output = execSync("git diff --cached --name-only --diff-filter=ACMR", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return output
+      .split("\n")
+      .map((f) => f.trim())
+      .filter((f) => f.length > 0);
+  } catch {
+    return [];
+  }
+}
 
 function severityColor(severity: string): (text: string) => string {
   switch (severity) {
@@ -118,10 +137,9 @@ function formatSummary(summary: EnforceSummary): void {
 
 export async function enforceCommand(
   targetPath: string,
-  options: { manifest?: string; report?: boolean; environment?: string },
+  options: { manifest?: string; report?: boolean; environment?: string; staged?: boolean },
 ): Promise<void> {
   const manifestPath = resolve(options.manifest ?? "aim.yaml");
-  const resolvedTarget = resolve(targetPath);
 
   // Check manifest exists
   if (!existsSync(manifestPath)) {
@@ -130,9 +148,99 @@ export async function enforceCommand(
     process.exit(1);
   }
 
+  // Handle --staged mode: only check git-staged files
+  if (options.staged) {
+    const stagedFiles = getStagedFiles();
+    if (stagedFiles.length === 0) {
+      console.log(chalk.green("\n  ✓ No staged files to check\n"));
+      return;
+    }
+
+    console.log(
+      chalk.dim(`\n  Enforcing ${chalk.white(options.manifest ?? "aim.yaml")} against ${stagedFiles.length} staged file${stagedFiles.length !== 1 ? "s" : ""}...\n`),
+    );
+
+    // Run enforcement on each staged file
+    let totalBlocked = 0;
+    let totalWarnings = 0;
+    const allViolations: Violation[] = [];
+
+    for (const file of stagedFiles) {
+      const filePath = resolve(file);
+      if (!existsSync(filePath)) continue;
+
+      try {
+        const summary = await enforce({
+          manifestPath,
+          targetPath: filePath,
+          environment: options.environment,
+        });
+
+        for (const result of summary.results) {
+          if (result.violations.length > 0) {
+            allViolations.push(...result.violations);
+          }
+        }
+
+        totalBlocked += summary.byAction["block"] ?? 0;
+        totalWarnings += (summary.byAction["warn"] ?? 0) + (summary.byAction["log"] ?? 0);
+      } catch {
+        // Skip files that can't be processed
+      }
+    }
+
+    // Output violations
+    if (allViolations.length > 0) {
+      const fileGroups = new Map<string, Violation[]>();
+      for (const v of allViolations) {
+        const existing = fileGroups.get(v.file) ?? [];
+        existing.push(v);
+        fileGroups.set(v.file, existing);
+      }
+
+      for (const [file, violations] of fileGroups) {
+        console.log(chalk.white.bold(`  ${file}`));
+        console.log();
+        for (const v of violations) {
+          formatViolation(v);
+        }
+      }
+    }
+
+    // Summary
+    console.log(chalk.dim("  ─".repeat(30)));
+    console.log();
+
+    if (totalBlocked > 0) {
+      console.log(chalk.red.bold(`  ✗ ${totalBlocked} blocking violation${totalBlocked !== 1 ? "s" : ""}`));
+    }
+    if (totalWarnings > 0) {
+      console.log(chalk.yellow(`  ⚠ ${totalWarnings} warning${totalWarnings !== 1 ? "s" : ""}`));
+    }
+    if (totalBlocked === 0 && totalWarnings === 0) {
+      console.log(chalk.green.bold("  ✓ No violations found"));
+    }
+
+    console.log(chalk.dim(`    ${stagedFiles.length} staged files checked`));
+    console.log();
+
+    if (totalBlocked > 0) {
+      process.exit(1);
+    }
+    return;
+  }
+
+  // Standard mode: check target path
+  const resolvedTarget = resolve(targetPath);
+
   // Check target exists
   if (!existsSync(resolvedTarget)) {
-    console.error(chalk.red(`\n  ✗ Target not found: ${resolvedTarget}\n`));
+    console.error(chalk.red(`\n  ✗ Target not found: ${resolvedTarget}`));
+    console.error(chalk.dim(`\n  The path "${targetPath}" does not exist in this directory.`));
+    console.error(chalk.dim(`  Try one of these:`));
+    console.error(chalk.dim(`    • ${chalk.white("manifest enforce .")} — enforce on current directory`));
+    console.error(chalk.dim(`    • ${chalk.white("manifest enforce lib/")} — enforce on lib/ directory`));
+    console.error(chalk.dim(`    • ${chalk.white("manifest enforce app/")} — enforce on app/ directory\n`));
     process.exit(1);
   }
 

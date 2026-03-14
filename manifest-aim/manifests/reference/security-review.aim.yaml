@@ -1,0 +1,227 @@
+aim: "1.0"
+
+metadata:
+  name: security-review
+  version: 1.0.0
+  description: "Security code review standards and vulnerability prevention"
+  tags: [security, owasp, appsec, code-review]
+  license: MIT
+
+context:
+  persona: "Security-focused developer conducting code review"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Injection ──
+
+    - name: no-sql-injection
+      description: "Prevent SQL injection"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(query|execute|raw)\\s*\\([^)]*['\"].*\\$\\{|\\+\\s*['\"]|f['\"].*\\{.*['\"])"
+      action: block
+      severity: critical
+      message: "Potential SQL injection. Use parameterized queries."
+      fix_hint: "Use parameterized queries or ORM methods"
+
+    - name: no-command-injection
+      description: "Prevent command injection"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(exec|spawn|system|popen|eval)\\s*\\([^)]*\\$\\{|\\+\\s*['\"]"
+      action: block
+      severity: critical
+      message: "Potential command injection."
+      fix_hint: "Avoid shell commands with user input, or sanitize strictly"
+
+    - name: no-xss
+      description: "Prevent cross-site scripting"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "innerHTML|dangerouslySetInnerHTML|document\\.write"
+      action: warn
+      severity: warning
+      message: "Potential XSS vulnerability."
+      fix_hint: "Use textContent, or sanitize HTML with DOMPurify"
+
+    # ── Authentication ──
+
+    - name: secure-password-handling
+      description: "Passwords must be properly hashed"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check password handling:
+          - Passwords must be hashed with bcrypt, argon2, or scrypt
+          - Never store plaintext passwords
+          - Never log passwords
+          - Use constant-time comparison
+        model: fast
+        threshold: 0.85
+      action: block
+      severity: critical
+      message: "Insecure password handling detected."
+
+    - name: secure-session-management
+      description: "Secure session handling"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check session security:
+          - Session tokens must be cryptographically random
+          - Sessions must expire
+          - Session cookies must have Secure, HttpOnly, SameSite flags
+          - Regenerate session ID on login
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Review session security configuration."
+
+    # ── Secrets ──
+
+    - name: no-hardcoded-secrets
+      description: "No hardcoded secrets or credentials"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(password|secret|api_key|private_key|token|credential)\\s*[=:]\\s*['\"][^'\"]{8,}['\"]"
+      action: block
+      severity: critical
+      message: "Hardcoded secret detected."
+      fix_hint: "Use environment variables or a secrets manager"
+
+    - name: no-secrets-in-logs
+      description: "Don't log sensitive data"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(log|print|console).*\\b(password|secret|token|key|credential|ssn|credit_card)\\b"
+      action: block
+      severity: critical
+      message: "Sensitive data may be logged."
+      fix_hint: "Redact or mask sensitive data before logging"
+
+    # ── Cryptography ──
+
+    - name: no-weak-crypto
+      description: "Don't use weak cryptographic algorithms"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b(MD5|SHA1|DES|RC4)\\b|createHash\\(['\"]md5|createHash\\(['\"]sha1"
+      action: warn
+      severity: warning
+      message: "Weak cryptographic algorithm. Use SHA-256+, AES-256."
+      fix_hint: "Use SHA-256 or better for hashing, AES-256-GCM for encryption"
+
+    - name: secure-random
+      description: "Use cryptographically secure random"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "Math\\.random\\(\\)|random\\.random\\(\\)"
+      action: warn
+      severity: warning
+      message: "Use crypto-secure random for security-sensitive operations."
+      fix_hint: "Use crypto.randomBytes (Node) or secrets module (Python)"
+
+    # ── Input Validation ──
+
+    - name: validate-all-input
+      description: "Validate all external input"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check input validation:
+          - Request parameters must be validated
+          - File uploads must check type, size, name
+          - URLs must be validated before fetch
+          - JSON must be validated against schema
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Input may not be validated."
+      fix_hint: "Use validation libraries (Zod, Joi, class-validator)"
+
+    # ── CSRF ──
+
+    - name: csrf-protection
+      description: "State-changing requests need CSRF protection"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check CSRF protection for POST/PUT/DELETE endpoints:
+          - Must validate CSRF token
+          - Or use SameSite=Strict cookies
+          - Or verify Origin/Referer headers
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Endpoint may lack CSRF protection."
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      require_input_validation: true
+
+knowledge:
+  - name: owasp-top-10
+    trigger: "reviewing security, handling user input, or authentication"
+    priority: 100
+    content: |
+      ## OWASP Top 10 (2021)
+
+      1. **Broken Access Control** - Enforce authorization on all endpoints
+      2. **Cryptographic Failures** - Use strong encryption, protect secrets
+      3. **Injection** - Parameterized queries, input validation
+      4. **Insecure Design** - Threat modeling, secure defaults
+      5. **Security Misconfiguration** - Disable debug, secure headers
+      6. **Vulnerable Components** - Update dependencies, audit regularly
+      7. **Auth Failures** - Strong passwords, MFA, session management
+      8. **Software/Data Integrity** - Verify updates, code signing
+      9. **Logging Failures** - Log security events, monitor anomalies
+      10. **SSRF** - Validate URLs, allowlist destinations
+
+  - name: secure-headers
+    trigger: "configuring HTTP headers or security settings"
+    priority: 90
+    content: |
+      ## Security Headers
+
+      ```
+      Strict-Transport-Security: max-age=31536000; includeSubDomains
+      Content-Security-Policy: default-src 'self'
+      X-Content-Type-Options: nosniff
+      X-Frame-Options: DENY
+      X-XSS-Protection: 1; mode=block
+      Referrer-Policy: strict-origin-when-cross-origin
+      Permissions-Policy: geolocation=(), microphone=()
+      ```
+
+      ### Cookie Flags
+      - **Secure**: Only sent over HTTPS
+      - **HttpOnly**: Not accessible to JavaScript
+      - **SameSite=Strict**: Only sent on same-site requests

@@ -1,0 +1,237 @@
+aim: "1.0"
+
+metadata:
+  name: code-review
+  version: 1.0.0
+  description: "Code review guidelines and standards"
+  tags: [code-review, quality, collaboration, best-practices]
+  license: MIT
+
+context:
+  persona: "Developer reviewing code or preparing for review"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Review Focus ──
+
+    - name: check-functionality
+      description: "Verify code does what it claims"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Check functionality:
+          - Code achieves stated purpose
+          - Edge cases are handled
+          - Error paths are considered
+          - Requirements are met
+        model: fast
+        threshold: 0.85
+      action: warn
+      severity: warning
+      message: "Verify code meets requirements."
+
+    - name: check-security
+      description: "Review for security issues"
+      category: security
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Security checklist:
+          - No hardcoded secrets
+          - Input is validated/sanitized
+          - Auth/authz is correct
+          - No SQL injection, XSS, etc.
+          - Sensitive data is protected
+        model: fast
+        threshold: 0.9
+      action: warn
+      severity: warning
+      message: "Review security implications."
+
+    - name: check-tests
+      description: "Changes should have tests"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Test coverage:
+          - New features have tests
+          - Bug fixes include regression tests
+          - Edge cases are tested
+          - Tests are meaningful, not just coverage
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Ensure adequate test coverage."
+
+    # ── Code Quality ──
+
+    - name: check-readability
+      description: "Code should be readable"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Readability checks:
+          - Names are descriptive
+          - Functions are focused
+          - Logic is clear
+          - Complex parts are documented
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: info
+      message: "Consider readability improvements."
+
+    - name: check-maintainability
+      description: "Code should be maintainable"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Maintainability:
+          - No unnecessary complexity
+          - DRY principle followed
+          - Consistent patterns used
+          - Dependencies are minimal
+        model: fast
+        threshold: 0.75
+      action: warn
+      severity: info
+      message: "Review maintainability."
+
+    # ── Review Process ──
+
+    - name: pr-size
+      description: "PRs should be reasonably sized"
+      category: quality
+      enforcement: injected
+      instruction: |
+        PR size guidelines:
+        - Ideal: < 400 lines changed
+        - Maximum: < 1000 lines
+        - Split large changes into logical chunks
+        - Refactoring separate from features
+        - One concern per PR
+      action: log
+      severity: info
+
+    - name: constructive-feedback
+      description: "Give constructive feedback"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Feedback guidelines:
+        - Be respectful and constructive
+        - Explain the "why" behind suggestions
+        - Use questions over commands
+        - Distinguish blockers from nice-to-haves
+        - Praise good solutions
+        - Focus on code, not the person
+      action: log
+      severity: info
+
+    - name: review-checklist
+      description: "Standard review checklist"
+      category: quality
+      enforcement: injected
+      instruction: |
+        Review checklist:
+        - [ ] Code compiles/builds
+        - [ ] Tests pass
+        - [ ] No security vulnerabilities
+        - [ ] Error handling is appropriate
+        - [ ] Performance is acceptable
+        - [ ] Documentation is updated
+        - [ ] Breaking changes are noted
+        - [ ] Backwards compatibility maintained
+      action: log
+      severity: info
+
+  quality_gates:
+    code:
+      require_types: false
+
+knowledge:
+  - name: review-patterns
+    trigger: "reviewing code or giving feedback"
+    priority: 100
+    content: |
+      ## Code Review Patterns
+
+      ### Feedback Categories
+      Use prefixes to clarify intent:
+      - **[blocking]**: Must fix before merge
+      - **[suggestion]**: Nice to have improvement
+      - **[question]**: Need clarification
+      - **[nit]**: Minor style issue
+      - **[praise]**: Highlighting good work
+
+      ### Good Feedback Examples
+      ```markdown
+      [suggestion] Consider using a Map here instead of repeated
+      object lookups. It would improve readability:
+
+      const userMap = new Map(users.map(u => [u.id, u]));
+
+      [question] I see we're not handling the case where `data`
+      is undefined. Is that intentional, or should we add a check?
+
+      [blocking] This query doesn't sanitize user input, which
+      could lead to SQL injection. We should use parameterized
+      queries here.
+      ```
+
+      ### What to Look For
+      1. **Logic errors** - Does the code do what's intended?
+      2. **Edge cases** - What about null, empty, negative values?
+      3. **Error handling** - What happens when things fail?
+      4. **Performance** - Any obvious bottlenecks?
+      5. **Security** - Any vulnerabilities introduced?
+      6. **Style** - Consistent with codebase conventions?
+
+  - name: review-author-tips
+    trigger: "preparing code for review"
+    priority: 90
+    content: |
+      ## Preparing Code for Review
+
+      ### Self-Review First
+      Before requesting review:
+      - [ ] Read your own diff
+      - [ ] Run tests locally
+      - [ ] Check for debug code
+      - [ ] Verify commit messages are clear
+
+      ### PR Description Template
+      ```markdown
+      ## What
+      Brief description of changes
+
+      ## Why
+      Context and motivation
+
+      ## How
+      Implementation approach
+
+      ## Testing
+      How this was tested
+
+      ## Screenshots
+      (if UI changes)
+      ```
+
+      ### Making Changes Easy to Review
+      - Keep PRs small and focused
+      - Separate refactoring from features
+      - Add comments explaining non-obvious code
+      - Respond to all feedback, even if not changing

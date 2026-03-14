@@ -3,31 +3,31 @@ aim: "1.0"
 metadata:
   name: manifest-aim
   version: 0.1.0
-  description: "AIM governance for the Manifest AIM platform itself — dogfooding our own tool"
-  authors: ["Vaspera Capital"]
-  tags: [typescript, cli, governance, aim, platform]
-  license: "SEE LICENSE IN LICENSE"
+  description: "The Agent Instruction Manifest platform — Define it. Manifest it."
+  tags: []
 
 context:
-  persona: "Senior TypeScript platform engineer building a developer tool that must be rock-solid, well-tested, and maintainable"
+  persona: "Senior TypeScript engineer following production best practices"
   domain: software-engineering
   environment: production
 
 governance:
   rules:
+
     # ── Security ──
 
     - name: no-eval
-      description: "Prevent eval() in platform code"
+      description: "Prevent eval() and similar dynamic execution"
       category: security
       enforcement: static
+      exclude_paths: ["**/aim-generator.ts"]  # Generator defines rules, doesn't use eval
       detect:
         type: pattern
         match: "\\beval\\s*\\("
-        file_types: [ts, js]
+        file_types: [ts, js, tsx, jsx]
       action: block
       severity: critical
-      message: "eval() is forbidden in platform code."
+      message: "eval() is forbidden. Use safe alternatives."
       fix_hint: "Use JSON.parse() for data, or restructure to avoid dynamic execution"
 
     - name: no-hardcoded-secrets
@@ -37,13 +37,38 @@ governance:
       detect:
         type: pattern
         match: "(api_key|secret|password|token|private_key)\\s*[=:]\\s*['\"][^'\"]{8,}['\"]"
-        file_types: [ts, js]
       action: block
       severity: critical
       message: "Hardcoded secrets detected."
-      fix_hint: "Use environment variables or config files"
+      fix_hint: "Use environment variables or a secrets manager"
 
-    # ── Type Safety ──
+    # ── Code Quality ──
+
+    - name: no-console-in-src
+      description: "Prevent console.log in production code"
+      category: quality
+      enforcement: static
+      exclude_paths: ["**/tests/**", "**/__tests__/**", "**/test/**", "**/cli/**"]
+      detect:
+        type: pattern
+        match: "console\\.log\\("
+      action: warn
+      severity: warning
+      message: "console.log detected in production code."
+
+    - name: no-empty-catch
+      description: "Prevent swallowing errors silently"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}"
+      action: warn
+      severity: warning
+      message: "Empty catch block swallows errors."
+      fix_hint: "Log the error or add a comment explaining why it's intentional"
+
+    # ── TypeScript ──
 
     - name: no-any-type
       description: "Minimize use of 'any' type"
@@ -52,7 +77,7 @@ governance:
       detect:
         type: pattern
         match: ":\\s*any\\b"
-        file_types: [ts]
+        file_types: [ts, tsx]
       action: warn
       severity: warning
       message: "Avoid 'any' type — use specific types or 'unknown'."
@@ -65,140 +90,81 @@ governance:
       detect:
         type: pattern
         match: "@ts-ignore"
-        file_types: [ts]
+        file_types: [ts, tsx]
       action: warn
       severity: warning
       message: "Use @ts-expect-error with explanation instead."
 
-    # ── Code Quality ──
+    # ── Semantic (LLM-as-judge) ──
 
-    - name: no-console-in-src
-      description: "Prevent console.log in library source (CLI commands excluded)"
+    - name: clean-architecture
+      description: "Ensure domain logic is separate from infrastructure"
       category: quality
-      enforcement: static
-      exclude_paths: ["cli/commands/**"]
+      enforcement: semantic
       detect:
-        type: pattern
-        match: "console\\.log\\("
-        file_types: [ts]
+        type: semantic
+        criteria: |
+          Check if this code properly separates domain logic from infrastructure:
+          - Domain modules should not import from infrastructure, database, or HTTP layers
+          - Business logic should not be in route handlers or controllers
+          - Use dependency injection for external dependencies
+        model: fast
+        threshold: 0.85
       action: warn
       severity: warning
-      message: "console.log detected — library code should not log directly."
+      message: "Code may violate clean architecture principles."
+      fix_hint: "Move business logic to domain layer, use dependency injection"
 
-    - name: no-empty-catch
-      description: "Prevent swallowing errors silently"
-      category: quality
-      enforcement: static
-      detect:
-        type: pattern
-        match: "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}"
-        file_types: [ts]
-      action: warn
-      severity: warning
-      message: "Empty catch block swallows errors."
-      fix_hint: "Log the error or add a comment explaining why it's intentional"
-
-    - name: no-todo-in-production
-      description: "Track unfinished work"
-      category: quality
-      enforcement: static
-      when: "environment == 'production'"
-      detect:
-        type: pattern
-        match: "\\bTODO\\b|\\bFIXME\\b|\\bHACK\\b"
-        file_types: [ts]
-      action: warn
-      severity: warning
-      message: "Unresolved TODO/FIXME found."
-
-    # ── Tool-based ──
-
-    - name: run-eslint
-      description: "ESLint compliance"
-      category: quality
-      enforcement: static
-      detect:
-        type: tool
-        command: "npx eslint {{file}} --format json"
-        success_codes: [0]
-      action: warn
-      severity: warning
-      message: "ESLint check failed."
-
-    # ── Guidelines ──
+    # ── Guidelines (Injected) ──
 
     - name: platform-standards
       enforcement: injected
       action: log
       instruction: |
-        Manifest AIM Platform Standards:
-        1. All public APIs must have TypeScript types — no 'any'
-        2. Every new feature needs tests (vitest)
-        3. CLI commands go in src/cli/commands/, engines in src/<domain>/
-        4. Use js-yaml for YAML, commander for CLI, chalk for output
-        5. Manifests validate against schemas/aim-v1.0.schema.json
-        6. Keep functions under 50 lines, files under 400 lines
-        7. Error messages must be actionable — tell the user what to do
-        8. All file paths must use node:path for cross-platform support
+        manifest-aim Development Standards:
+        - All code must be TypeScript with strict mode
+        - No 'any' types without explicit justification
+        - Write tests using Vitest
+        - Test both success and failure paths
+        - Keep functions under 50 lines, files under 400 lines
+        - Error messages must be actionable
       severity: info
 
-    - name: testing-standards
-      enforcement: injected
-      action: log
-      instruction: |
-        Testing Standards:
-        1. Unit tests for all engines (enforce, compile, wrap, tier)
-        2. CLI integration tests using execSync
-        3. Fixtures go in tests/fixtures/
-        4. Test both success and failure paths
-        5. Benchmark tests for performance claims
-      severity: info
+  # ── Transforms ──
+  transforms:
+    - name: strip-console-logs
+      when: "context.environment == 'production'"
+      detect:
+        type: pattern
+        match: "console\\.log\\([^)]*\\);?\\n?"
+      transform:
+        type: remove_match
 
   quality_gates:
     code:
-      test_coverage_minimum: 80
       require_types: strict
       max_complexity: 15
       max_file_length: 400
       require_error_handling: true
-      forbidden_patterns:
-        - "\\beval\\("
-        - "@ts-ignore"
 
 knowledge:
-  - name: aim-architecture
-    trigger: "adding new features, commands, or modules to the AIM platform"
+  - name: architecture
+    trigger: "creating new modules, services, or components"
     priority: 100
     content: |
-      ## AIM Platform Architecture
+      ## manifest-aim Architecture
 
-      ```
-      src/
-      ├── cli/           # CLI entry point + commands
-      │   ├── index.ts   # Commander setup, all commands registered
-      │   └── commands/   # One file per command
-      ├── enforce/        # Enforcement engine (pattern, tool, semantic, composite)
-      ├── compile/        # Manifest compilation + inheritance
-      ├── wrap/           # Context injection for agent platforms
-      ├── tier/           # Progressive capability loading
-      ├── registry/       # Registry client (publish, install, search)
-      └── index.ts        # Public API exports
+      Directory structure:
+      - src/
+      - tests/
+      API style: rest
 
-      tests/              # Vitest tests (mirrors src/ structure)
-      schemas/            # JSON Schema for aim.yaml validation
-      manifests/          # Reference manifests
-      action/             # GitHub Action
-      docs/               # Specification + documentation site
-      ```
-
-  - name: manifest-format
-    trigger: "working with aim.yaml files, schema, or validation"
+  - name: build-and-test
+    trigger: "building, testing, or running the project"
     priority: 90
     content: |
-      ## AIM Manifest Format
+      ## Build & Test Commands
 
-      Required fields: aim (version), metadata.name, metadata.version
-      Governance rules need: name, detect (or instruction for injected), action, severity
-      Detection types: pattern, tool, semantic, composite
-      Enforcement modes: static, semantic, injected
-      Quality gates: code, content, data domains
+      build: tsc
+      test: vitest
+      test:coverage: vitest --coverage
