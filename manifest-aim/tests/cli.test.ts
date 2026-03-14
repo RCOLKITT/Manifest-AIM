@@ -222,13 +222,28 @@ describe("CLI: stub commands", () => {
     expect(exitCode).toBe(1);
   });
 
-  it("manifest publish should show coming soon", () => {
-    const { stdout } = run("publish");
-    expect(stdout).toContain("coming in");
+  it("manifest publish should handle missing manifest", () => {
+    const { stdout, exitCode } = run("publish");
+    // Without a manifest, publish should error
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain("not found");
   });
 
-  it("manifest install should show coming soon", () => {
-    const { stdout } = run("install some-package");
-    expect(stdout).toContain("coming in");
+  it("manifest publish --dry-run should show package info", () => {
+    const { stdout, exitCode } = run(
+      `publish ${join(FIXTURES, "full-valid.aim.yaml")} --dry-run`,
+    );
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Publishing");
+    expect(stdout).toContain("dry run");
+  });
+
+  it("manifest generate should detect project profile", () => {
+    const { stdout, exitCode } = run(
+      `generate --path ${join(FIXTURES, "..")} --output /tmp/aim-cli-test-gen.yaml --force`,
+    );
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain("Generated");
+    expect(stdout).toContain("rules");
   });
 });

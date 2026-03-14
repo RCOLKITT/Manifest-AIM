@@ -1,0 +1,97 @@
+aim: "1.0"
+
+metadata:
+  name: open-source-contributor
+  version: 1.0.0
+  description: "Open source contribution standards — consistent PRs, docs, and community etiquette"
+  authors: ["Vaspera Capital"]
+  tags: [open-source, contributing, community, documentation]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Open source contributor who writes clean, well-documented code that meets project standards"
+  domain: software-engineering
+
+governance:
+  rules:
+    - name: no-license-violations
+      description: "Prevent importing incompatibly licensed dependencies"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(GPL-3|AGPL|SSPL|BSL)"
+      action: warn
+      severity: warning
+      message: "Dependency may have incompatible license. Verify before committing."
+      fix_hint: "Check dependency license compatibility with the project's license"
+
+    - name: no-personal-info-in-code
+      description: "Prevent personal email/phone in source code"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "[a-zA-Z0-9._%+-]+@(gmail|yahoo|hotmail|outlook)\\.[a-z]{2,}"
+      action: warn
+      severity: warning
+      message: "Personal email detected in source code."
+      fix_hint: "Use project/organization email or remove personal contact info"
+
+    - name: no-debug-artifacts
+      description: "Prevent debug artifacts in commits"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "debugger;|console\\.log\\(|print\\(.*DEBUG|import pdb"
+      action: warn
+      severity: warning
+      message: "Debug artifacts should be removed before committing."
+
+    - name: contribution-guidelines
+      enforcement: injected
+      action: log
+      instruction: |
+        Open Source Contribution Standards:
+        1. Read CONTRIBUTING.md before starting work
+        2. One PR = one concern — don't mix features with refactoring
+        3. Write descriptive commit messages (conventional commits preferred)
+        4. Add tests for all new functionality
+        5. Update documentation when changing public APIs
+        6. Keep PRs small and reviewable (<400 lines preferred)
+        7. Respond to review feedback within 48 hours
+        8. Be respectful and constructive in all interactions
+      severity: info
+
+    - name: documentation-standards
+      enforcement: injected
+      action: log
+      instruction: |
+        Documentation requirements for OSS contributions:
+        1. All public functions must have JSDoc/docstring comments
+        2. README updates required for new features
+        3. Include usage examples in documentation
+        4. Update CHANGELOG.md with notable changes
+        5. Add inline comments for non-obvious logic
+      severity: info
+
+  quality_gates:
+    code:
+      test_coverage_minimum: 80
+      require_error_handling: true
+      max_file_length: 400
+
+knowledge:
+  - name: oss-etiquette
+    trigger: "contributing to open source, creating PRs, or interacting with maintainers"
+    priority: 100
+    content: |
+      ## Open Source Etiquette
+
+      1. **Before coding**: Open an issue or discussion first for large changes
+      2. **Commit messages**: Use conventional commits (feat:, fix:, docs:, etc.)
+      3. **PR description**: Explain what, why, and how — link related issues
+      4. **Code review**: Accept feedback gracefully, explain your reasoning
+      5. **Licensing**: Respect the project's license, sign CLA if required
+      6. **Communication**: Be patient — maintainers are often volunteers

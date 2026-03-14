@@ -1,0 +1,118 @@
+# Writing Governance Rules
+
+AIM governance rules define what agents must and must not do. Each rule has a detection mechanism and an action.
+
+## Rule Structure
+
+```yaml
+governance:
+  rules:
+    - name: rule-name           # Unique identifier
+      description: "..."        # Human-readable explanation
+      category: security        # security | quality | compliance | style | safety | custom
+      enforcement: static       # static | semantic | injected
+      when: "condition"         # Optional: when to apply
+      detect:
+        type: pattern           # pattern | tool | semantic | composite
+        match: "regex"          # Detection-specific config
+      action: block             # block | warn | log | require_approval | escalate | transform | retry
+      severity: critical        # critical | error | warning | info
+      message: "..."            # Shown when rule triggers
+      fix_hint: "..."           # How to fix the violation
+```
+
+## Detection Modes
+
+### Pattern Detection
+
+Regex-based matching against file contents:
+
+```yaml
+detect:
+  type: pattern
+  match: "\\beval\\s*\\("
+  file_types: [ts, tsx, js]    # Optional: limit to specific file types
+```
+
+### Tool Detection
+
+Run an external tool and check its exit code:
+
+```yaml
+detect:
+  type: tool
+  command: "npx eslint {{file}} --format json"
+  success_codes: [0]
+```
+
+### Semantic Detection
+
+LLM-as-judge evaluation:
+
+```yaml
+detect:
+  type: semantic
+  criteria: |
+    Evaluate whether this code properly handles errors:
+    1. All try/catch blocks have meaningful error handling
+    2. Errors are not silently swallowed
+    3. Error messages are user-friendly
+  model: fast
+  threshold: 0.8
+```
+
+### Composite Detection
+
+Chain multiple checks with strategies:
+
+```yaml
+detect:
+  type: composite
+  strategy: weighted         # all_must_pass | any_must_pass | weighted
+  checks:
+    - type: pattern
+      match: "\\beval\\b"
+      weight: 0.5
+    - type: tool
+      command: "bandit -r {{file}}"
+      weight: 0.3
+    - type: semantic
+      criteria: "Does this execute user input?"
+      weight: 0.2
+  threshold: 0.6
+```
+
+## Governance Actions
+
+| Action | Behavior | Exit Code |
+|--------|----------|-----------|
+| `block` | Prevents delivery, agent must fix | 1 |
+| `warn` | Delivers with visible warning | 0 |
+| `log` | Silent audit record | 0 |
+| `require_approval` | Pauses for human approval | 0 |
+| `escalate` | Notifies specified parties | 0 |
+| `transform` | Auto-modifies the output | 0 |
+| `retry` | Sends back with fix instructions | 0 |
+
+## Conditional Rules
+
+Apply rules based on context:
+
+```yaml
+- name: no-console-production
+  when: "environment == 'production'"
+  detect:
+    type: pattern
+    match: "console\\.(log|debug)\\("
+  action: block
+  severity: error
+  message: "No console.log in production code."
+```
+
+## Best Practices
+
+1. **Start with `warn`, promote to `block`** — Let teams adapt gradually
+2. **Write clear fix hints** — Tell developers exactly how to fix violations
+3. **Use categories** — Group related rules for easier management
+4. **Test your patterns** — Run `manifest enforce` against known violations
+5. **Keep rules focused** — One rule, one concern

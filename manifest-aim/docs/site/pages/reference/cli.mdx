@@ -1,0 +1,128 @@
+# CLI Commands
+
+Complete reference for the `manifest` CLI.
+
+## manifest init
+
+Initialize a new `aim.yaml` in the current directory.
+
+```bash
+manifest init [--template <name>] [--force]
+```
+
+| Option | Description |
+|--------|-------------|
+| `-t, --template <name>` | Use a reference manifest as template |
+| `--force` | Overwrite existing aim.yaml |
+
+## manifest generate
+
+Auto-generate an AIM manifest from codebase analysis.
+
+```bash
+manifest generate [--path <dir>] [--output <file>] [--force]
+```
+
+Detects languages, frameworks, linters, test frameworks, and generates appropriate rules.
+
+## manifest validate
+
+Validate against the AIM v1.0 schema.
+
+```bash
+manifest validate [file] [--strict] [--schema <path>]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--strict` | Fail on warnings |
+| `--schema <path>` | Custom schema file |
+
+## manifest compile
+
+Resolve inheritance, dependencies, and produce a compiled manifest.
+
+```bash
+manifest compile [file] [-o <path>]
+```
+
+## manifest wrap
+
+Generate platform-specific context injection.
+
+```bash
+manifest wrap <platform> [-m <file>] [-o <dir>] [-e <env>] [--dry-run]
+```
+
+Platforms: `claude-code`, `cursor`, `windsurf`, `generic`
+
+## manifest enforce
+
+Run governance checks against files.
+
+```bash
+manifest enforce <path> [-m <file>] [--report] [-e <env>]
+```
+
+| Option | Description |
+|--------|-------------|
+| `--report` | Output JSON governance report |
+| `-e, --environment` | Override environment context |
+
+Exit code 1 if blocking violations found.
+
+## manifest tier
+
+Inspect capabilities at a specific tier level.
+
+```bash
+manifest tier [filter] [-m <file>] [-t <0-3>]
+```
+
+## manifest diff
+
+Compare two manifests and show differences.
+
+```bash
+manifest diff <fileA> <fileB>
+```
+
+## manifest inspect
+
+Show what an agent sees at each tier.
+
+```bash
+manifest inspect [file] [--tier <n>] [--capability <name>] [--tokens]
+```
+
+## manifest doctor
+
+Verify tools, auth, and environment health.
+
+```bash
+manifest doctor [file]
+```
+
+## manifest publish
+
+Publish to the Manifest Registry.
+
+```bash
+manifest publish [file] [--dry-run]
+```
+
+## manifest install
+
+Install from the registry.
+
+```bash
+manifest install <name[@version]> [--save] [-o <dir>]
+```
+
+## manifest search
+
+Search the registry.
+
+```bash
+manifest search <query> [--tags <t>] [--domain <d>] [--limit <n>]
+```

@@ -1,0 +1,51 @@
+# Manifest Gallery
+
+Reference manifests that demonstrate AIM governance across different domains. Use these as starting points for your own manifests.
+
+## Install a Reference Manifest
+
+```bash
+manifest init --template enterprise-typescript
+```
+
+Or install from the registry:
+
+```bash
+manifest install enterprise-typescript
+```
+
+## Available Manifests
+
+### Software Engineering
+
+| Manifest | Rules | Description |
+|----------|-------|-------------|
+| [enterprise-typescript](/manifests/enterprise-typescript) | 12 | Enterprise TypeScript with security enforcement |
+| [react-best-practices](/manifests/react-best-practices) | 9 | React 19, accessibility, performance |
+| [python-production](/manifests/python-production) | 9 | Python security, type safety, async patterns |
+
+### Infrastructure
+
+| Manifest | Rules | Description |
+|----------|-------|-------------|
+| [devops-safety](/manifests/devops-safety) | 8 | Infrastructure safeguards, blast radius control |
+
+### Compliance
+
+| Manifest | Rules | Description |
+|----------|-------|-------------|
+| [hipaa-compliance](/manifests/hipaa-compliance) | 8 | HIPAA PHI protection, access control |
+
+### Content
+
+| Manifest | Rules | Description |
+|----------|-------|-------------|
+| [content-brand-voice](/manifests/content-brand-voice) | 7 | Writing style, inclusive language, quality |
+
+## Create Your Own
+
+```bash
+manifest generate    # Auto-detect from codebase
+manifest validate    # Check against schema
+manifest publish     # Share with the community
+```

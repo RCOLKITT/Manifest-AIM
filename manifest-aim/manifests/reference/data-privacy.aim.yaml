@@ -1,0 +1,133 @@
+aim: "1.0"
+
+metadata:
+  name: data-privacy
+  version: 1.0.0
+  description: "Data privacy enforcement for teams handling PII, GDPR, and data classification"
+  authors: ["Vaspera Capital"]
+  tags: [privacy, gdpr, pii, data, compliance]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Data engineer who ensures all personally identifiable information is handled according to privacy regulations"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    - name: no-pii-in-logs
+      description: "Prevent PII from appearing in log statements"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(email|phone|address|ssn|name|ip_address|credit_card).*\\b(log|print|console|logger)\\b|\\b(log|print|console|logger)\\b.*(email|phone|address|ssn|name|ip_address|credit_card)"
+      action: block
+      severity: critical
+      message: "PII must never be logged in plaintext (GDPR Art. 32)."
+      fix_hint: "Hash, tokenize, or redact PII fields before logging"
+
+    - name: no-pii-in-urls
+      description: "Prevent PII in URL query parameters"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(email|phone|ssn|name|address)=[^&]+"
+      action: block
+      severity: critical
+      message: "PII in URLs is cached by browsers, proxies, and CDNs."
+      fix_hint: "Send PII in POST request body, not URL parameters"
+
+    - name: no-pii-in-comments
+      description: "Prevent real PII data in code comments or test fixtures"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b.*(?:test|example|fixture|mock|sample)"
+      action: warn
+      severity: warning
+      message: "Possible real email in test data."
+      fix_hint: "Use @example.com addresses for test data (RFC 2606)"
+
+    - name: require-data-classification
+      description: "Data models should indicate classification level"
+      category: compliance
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Evaluate whether this code properly classifies data:
+          1. Data models/schemas have classification labels (public, internal, confidential, restricted)
+          2. PII fields are explicitly marked
+          3. Retention policies are specified for stored data
+          4. Data access is role-based
+          5. Cross-border data transfer restrictions are considered
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Data models should include classification metadata."
+
+    - name: data-privacy-practices
+      enforcement: injected
+      action: log
+      instruction: |
+        Data Privacy Engineering Practices:
+        1. Minimize data collection — only collect what's needed
+        2. Encrypt PII at rest (AES-256) and in transit (TLS 1.2+)
+        3. Implement data retention policies — auto-delete expired data
+        4. Support right-to-erasure (GDPR Art. 17) — deletion must be complete
+        5. Use pseudonymization where possible
+        6. Log data access for audit (who accessed what, when, why)
+        7. Test data must use synthetic/anonymized data, never production PII
+        8. Document data flows — know where PII goes
+      severity: info
+
+    - name: consent-management
+      enforcement: injected
+      action: log
+      instruction: |
+        Consent & Data Subject Rights:
+        1. Record consent with timestamp, purpose, and scope
+        2. Support consent withdrawal — must be as easy as giving consent
+        3. Implement data portability (GDPR Art. 20) — export in machine-readable format
+        4. Right to access (GDPR Art. 15) — users can request their data
+        5. Purpose limitation — don't use data beyond stated purpose
+      severity: info
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      require_input_validation: true
+      forbidden_patterns:
+        - "SELECT \\*"
+        - "password.*=.*['\"]"
+
+knowledge:
+  - name: gdpr-reference
+    trigger: "handling user data, consent, data requests, or privacy-related features"
+    priority: 100
+    content: |
+      ## GDPR Quick Reference
+
+      **Key Principles (Art. 5):**
+      1. Lawfulness, fairness, transparency
+      2. Purpose limitation
+      3. Data minimization
+      4. Accuracy
+      5. Storage limitation
+      6. Integrity and confidentiality
+
+      **Data Subject Rights:**
+      - Art. 15: Right of access
+      - Art. 16: Right to rectification
+      - Art. 17: Right to erasure
+      - Art. 18: Right to restriction
+      - Art. 20: Right to portability
+      - Art. 21: Right to object
+
+      **Breach Notification:**
+      - Supervisory authority: within 72 hours
+      - Data subjects: without undue delay (if high risk)

@@ -1,0 +1,70 @@
+# Manifest AIM
+
+**The Agent Instruction Manifest protocol — governance for AI agents.**
+
+Manifest AIM defines how AI agents should behave, what they're allowed to do, and how their output is enforced. One `aim.yaml` file governs your entire AI development workflow.
+
+## The Problem
+
+AI coding agents (Claude Code, Cursor, Windsurf) are powerful but ungoverned. Every team has standards, but agents don't know them unless you tell them — every single time. There's no standard way to:
+
+- **Define what an agent should do** (persona, domain knowledge, coding patterns)
+- **Enforce what it must not do** (security violations, compliance failures)
+- **Verify what it actually did** (governance checks, audit trails)
+
+## The Solution
+
+```yaml
+# aim.yaml — one file governs everything
+aim: "1.0"
+
+metadata:
+  name: my-project
+  version: 1.0.0
+
+context:
+  persona: "Senior TypeScript engineer"
+  domain: software-engineering
+
+governance:
+  rules:
+    - name: no-eval
+      detect:
+        type: pattern
+        match: "\\beval\\s*\\("
+      action: block
+      severity: critical
+      message: "eval() is forbidden."
+```
+
+## How It Works
+
+```
+manifest init       → Create aim.yaml
+manifest generate   → Auto-detect from codebase
+manifest validate   → Check against AIM schema
+manifest wrap       → Inject into agent context
+    [agent works]
+manifest enforce    → Verify output compliance
+```
+
+## Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **4 Detection Modes** | Pattern, tool, semantic (LLM-as-judge), composite |
+| **7 Governance Actions** | block, warn, log, require_approval, escalate, transform, retry |
+| **Progressive Loading** | Tier 0-3 capability loading — 99% token savings |
+| **Multi-Platform** | Claude Code, Cursor, Windsurf, generic |
+| **Composable** | Inherit, extend, and compose manifests |
+| **CI/CD Ready** | GitHub Action with PR comments and JSON reports |
+
+## Get Started
+
+```bash
+npx manifest-aim init
+npx manifest-aim generate
+npx manifest-aim wrap claude-code
+```
+
+Or explore the [Quickstart Guide](/quickstart) →

@@ -1,0 +1,100 @@
+# CI/CD Integration
+
+Enforce AIM governance automatically on every pull request.
+
+## GitHub Action
+
+Add the Manifest AIM GitHub Action to your workflow:
+
+```yaml
+# .github/workflows/aim-enforce.yml
+name: AIM Governance
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  enforce:
+    name: Enforce AIM Governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce AIM manifest
+        uses: RCOLKITT/Manifest-AIM/manifest-aim/action@main
+        with:
+          manifest: aim.yaml
+          target: src/
+          environment: production
+          fail-on-warnings: false
+          report: true
+```
+
+### Action Inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `manifest` | `aim.yaml` | Path to AIM manifest |
+| `target` | `.` | File or directory to enforce |
+| `environment` | — | Environment override |
+| `fail-on-warnings` | `false` | Exit 1 on warnings |
+| `report` | `true` | Generate JSON report artifact |
+
+### Action Outputs
+
+| Output | Description |
+|--------|-------------|
+| `violations` | Total violation count |
+| `blocked` | Whether blocking violations exist |
+| `report-path` | Path to JSON governance report |
+
+## JSON Governance Report
+
+Use `--report` for machine-readable output:
+
+```bash
+manifest enforce src/ --report
+```
+
+```json
+{
+  "manifest": "aim.yaml",
+  "summary": {
+    "files": 42,
+    "totalViolations": 3,
+    "blocked": true,
+    "byAction": { "block": 2, "warn": 1 },
+    "bySeverity": { "critical": 2, "warning": 1 }
+  },
+  "results": [...]
+}
+```
+
+## Environment-Specific Enforcement
+
+Use `when` conditions to apply different rules per environment:
+
+```yaml
+governance:
+  rules:
+    - name: no-console-production
+      when: "environment == 'production'"
+      detect:
+        type: pattern
+        match: "console\\.(log|debug)\\("
+      action: block
+      severity: error
+```
+
+Then in CI:
+
+```bash
+manifest enforce src/ -e production
+```

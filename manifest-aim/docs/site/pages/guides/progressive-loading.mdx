@@ -1,0 +1,122 @@
+# Progressive Loading
+
+AIM's progressive loading protocol eliminates token waste by loading capabilities on-demand across four tiers.
+
+## The Problem with Tool Schemas
+
+Traditional approaches dump all tool schemas into the agent's context upfront:
+
+| Scenario | Traditional | AIM Progressive |
+|----------|------------|-----------------|
+| 50 tools, need 2 | ~25,000 tokens | ~250 + ~400 = **650 tokens** |
+| 200 tools, need 5 | ~100,000+ tokens | ~1,000 + ~1,000 = **2,000 tokens** |
+
+That's a **97-99% reduction** in context cost.
+
+## The Four Tiers
+
+### Tier 0: Index (~5 tokens per capability)
+
+Always loaded. Just enough for discovery.
+
+```bash
+manifest tier -m aim.yaml
+```
+
+```
+── database-migrate ──
+  Tags: database, migration, schema
+  Run database schema migrations with rollback support
+
+── run-tests ──
+  Tags: testing, ci, quality
+  Execute test suite with coverage reporting
+```
+
+### Tier 1: Schema (~50-200 tokens per capability)
+
+Loaded when the agent identifies a relevant capability.
+
+```bash
+manifest tier database -m aim.yaml -t 1
+```
+
+```
+── database-migrate ──
+  Inputs:
+    direction: string (required) — Migration direction
+    steps: integer — Number of migration steps
+  Outputs:
+    applied: array — List of applied migration names
+  Preconditions: Database connection must be available
+  Idempotent: false
+```
+
+### Tier 2: Instructions (variable tokens)
+
+Loaded when the agent commits to using the capability.
+
+```bash
+manifest tier database -m aim.yaml -t 2
+```
+
+Includes full how-to, examples, and anti-patterns.
+
+### Tier 3: Dispatch (0 context tokens)
+
+Execution config — never enters the context window.
+
+```bash
+manifest tier database -m aim.yaml -t 3
+```
+
+```
+  Dispatch: cli
+  Config: {"command": "npx prisma migrate"}
+```
+
+## Defining Capabilities
+
+```yaml
+capabilities:
+  - name: database-migrate
+    tags: [database, migration]
+    index: "Run schema migrations with rollback"
+
+    schema:
+      inputs:
+        direction:
+          type: string
+          required: true
+          enum: [up, down]
+      outputs:
+        applied:
+          type: array
+      preconditions:
+        - "Database connection available"
+      idempotent: false
+
+    instructions: |
+      1. Check current migration status
+      2. Review migration file
+      3. Take backup before production
+      4. Apply migration
+      5. Verify schema state
+
+    examples:
+      - description: "Apply next migration"
+        input: { direction: "up", steps: 1 }
+
+    dispatch:
+      type: cli
+      config:
+        command: "npx prisma migrate"
+```
+
+## How It Works in Practice
+
+1. **INIT**: Agent loads Tier 0 index (~250 tokens for 50 capabilities)
+2. **MATCH**: User says "migrate the database" → agent matches `database-migrate`
+3. **EXPAND**: Agent loads Tier 1 schema to understand inputs/outputs
+4. **PLAN**: Agent loads Tier 2 instructions for the full how-to
+5. **EXECUTE**: Tier 3 dispatch config is used at execution time

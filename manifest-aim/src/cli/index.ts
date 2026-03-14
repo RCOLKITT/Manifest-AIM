@@ -10,6 +10,10 @@ import { compileCommand } from "./commands/compile.js";
 import { wrapCommand } from "./commands/wrap.js";
 import { tierCommand } from "./commands/tier.js";
 import { diffCommand } from "./commands/diff.js";
+import { publishCommand } from "./commands/publish.js";
+import { installCommand } from "./commands/install.js";
+import { searchCommand } from "./commands/search.js";
+import { generateCommand } from "./commands/generate.js";
 
 const program = new Command();
 
@@ -90,20 +94,35 @@ program
   .action(diffCommand);
 
 program
+  .command("generate")
+  .description("Auto-generate an AIM manifest from codebase analysis")
+  .option("-p, --path <dir>", "Project directory to analyze", ".")
+  .option("-o, --output <file>", "Output path for generated manifest", "aim.yaml")
+  .option("--force", "Overwrite existing aim.yaml")
+  .action(generateCommand);
+
+program
   .command("publish")
   .description("Publish manifest to the Manifest Registry")
   .argument("[file]", "Path to manifest file", "aim.yaml")
-  .action(() => {
-    console.log("manifest publish — coming in v0.4.0");
-  });
+  .option("--dry-run", "Validate and show what would be published without uploading")
+  .action(publishCommand);
 
 program
   .command("install")
   .description("Install a manifest from the registry")
-  .argument("<name>", "Manifest package name")
+  .argument("<name>", "Manifest package name (e.g., enterprise-typescript or name@1.0.0)")
   .option("--save", "Add as dependency in current manifest")
-  .action(() => {
-    console.log("manifest install — coming in v0.4.0");
-  });
+  .option("-o, --output <dir>", "Output directory", ".aim/manifests")
+  .action(installCommand);
+
+program
+  .command("search")
+  .description("Search the Manifest Registry")
+  .argument("<query>", "Search query")
+  .option("--tags <tags>", "Filter by tags (comma-separated)")
+  .option("--domain <domain>", "Filter by domain")
+  .option("--limit <n>", "Max results", "20")
+  .action(searchCommand);
 
 program.parse();

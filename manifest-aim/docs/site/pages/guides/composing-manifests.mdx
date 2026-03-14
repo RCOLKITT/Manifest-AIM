@@ -1,0 +1,84 @@
+# Composing Manifests
+
+AIM manifests can inherit from, extend, and compose with other manifests to build layered governance.
+
+## Inheritance
+
+A manifest can extend a base manifest, inheriting all its rules and adding its own:
+
+```yaml
+aim: "1.0"
+
+metadata:
+  name: my-project
+  version: 1.0.0
+
+extends: enterprise-typescript     # Inherit from base manifest
+
+governance:
+  rules:
+    - name: project-specific-rule  # Add your own rules
+      detect:
+        type: pattern
+        match: "deprecated_function"
+      action: warn
+      severity: warning
+```
+
+## Dependencies
+
+Pull in multiple manifests and compose them:
+
+```yaml
+dependencies:
+  - name: enterprise-typescript
+    version: ">=1.0.0"
+  - name: hipaa-compliance
+    version: "^1.0.0"
+```
+
+## Compilation
+
+The `manifest compile` command resolves the dependency chain and merges everything:
+
+```bash
+manifest compile aim.yaml -o .aim/compiled.yaml
+```
+
+### Merge Strategies
+
+When rules conflict across manifests:
+
+| Strategy | Behavior |
+|----------|----------|
+| `override` | Child rules replace parent rules with same name |
+| `merge` | Rules are merged, child values take precedence |
+| `append` | Both rules are kept |
+| `error` | Compilation fails on conflict |
+
+## Comparing Manifests
+
+Use `manifest diff` to see what changed:
+
+```bash
+manifest diff aim.yaml .aim/compiled.yaml
+```
+
+```
+  Context
+    ~ environment: "development" → "production"
+
+  Governance Rules
+    + hipaa-no-phi-in-logs: [block/critical] static
+    + hipaa-access-control: [require_approval/critical] semantic
+    ~ no-eval: [block/critical] static → [block/critical] static
+
+  2 differences found
+```
+
+## Best Practices
+
+1. **Layer manifests**: Base → Domain → Project → Environment
+2. **Pin versions**: Use specific versions for reproducibility
+3. **Compile in CI**: Always compile before enforcing
+4. **Diff before merging**: Review manifest changes like code changes

@@ -1,0 +1,97 @@
+# Quickstart
+
+Get AIM governance running in under 5 minutes.
+
+## 1. Install
+
+```bash
+npm install -g manifest-aim
+```
+
+## 2. Generate a Manifest
+
+Auto-detect your project's languages, frameworks, and tooling:
+
+```bash
+manifest generate
+```
+
+This creates an `aim.yaml` with rules tailored to your stack. Or start from a template:
+
+```bash
+manifest init --template enterprise-typescript
+```
+
+## 3. Validate
+
+```bash
+manifest validate
+```
+
+Checks your manifest against the AIM v1.0 schema and reports any issues.
+
+## 4. Inject into Your Agent
+
+```bash
+manifest wrap claude-code
+```
+
+This generates a `CLAUDE.md` file with your governance rules, knowledge, and quality gates injected into the agent's context.
+
+Other platforms:
+
+```bash
+manifest wrap cursor      # → .cursorrules
+manifest wrap windsurf    # → .windsurfrules
+manifest wrap generic     # → .aim/aim-context.md
+```
+
+## 5. Enforce
+
+After the agent produces output, verify compliance:
+
+```bash
+manifest enforce src/
+```
+
+Output:
+
+```
+  src/api/handler.ts
+
+  ✗ BLOCK src/api/handler.ts:15:10
+    eval() is forbidden.
+    matched: eval(
+
+  ⚠ WARN src/api/handler.ts:22:1
+    Remove console.log before production.
+    matched: console.log(
+
+  ✗ 1 blocking violation
+  ⚠ 1 warning
+```
+
+## 6. Add to CI/CD
+
+```yaml
+# .github/workflows/aim.yml
+name: AIM Governance
+on: [pull_request]
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: RCOLKITT/Manifest-AIM/manifest-aim/action@main
+        with:
+          manifest: aim.yaml
+          target: src/
+```
+
+## Next Steps
+
+- [Writing Rules](/guides/writing-rules) — Create custom governance rules
+- [Detection Modes](/reference/detection-modes) — Pattern, tool, semantic, composite
+- [Manifest Gallery](/manifests) — Browse reference manifests
+- [Progressive Loading](/guides/progressive-loading) — Tier 0-3 capability system
