@@ -211,20 +211,21 @@ describe("CLI: stub commands", () => {
   });
 
   it("manifest enforce should require manifest file", () => {
-    const { exitCode, stdout } = run("enforce ./src");
+    const tmpDir = mkdtempSync(join(tmpdir(), "manifest-test-"));
+    const { exitCode, stdout } = run("enforce .", { cwd: tmpDir });
     expect(exitCode).toBe(1);
     expect(stdout).toContain("Manifest not found");
   });
 
   it("manifest wrap should error on missing manifest", () => {
-    const { exitCode } = run("wrap claude-code");
-    // Default aim.yaml doesn't exist, so it should error
+    const tmpDir = mkdtempSync(join(tmpdir(), "manifest-test-"));
+    const { exitCode } = run("wrap claude-code", { cwd: tmpDir });
     expect(exitCode).toBe(1);
   });
 
   it("manifest publish should handle missing manifest", () => {
-    const { stdout, exitCode } = run("publish");
-    // Without a manifest, publish should error
+    const tmpDir = mkdtempSync(join(tmpdir(), "manifest-test-"));
+    const { stdout, exitCode } = run("publish", { cwd: tmpDir });
     expect(exitCode).toBe(1);
     expect(stdout).toContain("not found");
   });

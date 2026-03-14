@@ -1,0 +1,203 @@
+aim: "1.0"
+
+metadata:
+  name: manifest-aim
+  version: 0.1.0
+  description: "AIM governance for the Manifest AIM platform itself — dogfooding our own tool"
+  authors: ["Vaspera Capital"]
+  tags: [typescript, cli, governance, aim, platform]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Senior TypeScript platform engineer building a developer tool that must be rock-solid, well-tested, and maintainable"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Security ──
+
+    - name: no-eval
+      description: "Prevent eval() in platform code"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\beval\\s*\\("
+        file_types: [ts, js]
+      action: block
+      severity: critical
+      message: "eval() is forbidden in platform code."
+      fix_hint: "Use JSON.parse() for data, or restructure to avoid dynamic execution"
+
+    - name: no-hardcoded-secrets
+      description: "Prevent hardcoded API keys and secrets"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(api_key|secret|password|token|private_key)\\s*[=:]\\s*['\"][^'\"]{8,}['\"]"
+        file_types: [ts, js]
+      action: block
+      severity: critical
+      message: "Hardcoded secrets detected."
+      fix_hint: "Use environment variables or config files"
+
+    # ── Type Safety ──
+
+    - name: no-any-type
+      description: "Minimize use of 'any' type"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: ":\\s*any\\b"
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "Avoid 'any' type — use specific types or 'unknown'."
+      fix_hint: "Replace with a proper type, Record<string, unknown>, or unknown"
+
+    - name: no-ts-ignore
+      description: "Prevent @ts-ignore without explanation"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "@ts-ignore"
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "Use @ts-expect-error with explanation instead."
+
+    # ── Code Quality ──
+
+    - name: no-console-in-src
+      description: "Prevent console.log in library source (CLI commands excluded)"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "console\\.log\\("
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "console.log detected — CLI commands should use chalk, library code should not log."
+
+    - name: no-empty-catch
+      description: "Prevent swallowing errors silently"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}"
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "Empty catch block swallows errors."
+      fix_hint: "Log the error or add a comment explaining why it's intentional"
+
+    - name: no-todo-in-production
+      description: "Track unfinished work"
+      category: quality
+      enforcement: static
+      when: "environment == 'production'"
+      detect:
+        type: pattern
+        match: "\\bTODO\\b|\\bFIXME\\b|\\bHACK\\b"
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "Unresolved TODO/FIXME found."
+
+    # ── Tool-based ──
+
+    - name: run-eslint
+      description: "ESLint compliance"
+      category: quality
+      enforcement: static
+      detect:
+        type: tool
+        command: "npx eslint {{file}} --format json"
+        success_codes: [0]
+      action: warn
+      severity: warning
+      message: "ESLint check failed."
+
+    # ── Guidelines ──
+
+    - name: platform-standards
+      enforcement: injected
+      action: log
+      instruction: |
+        Manifest AIM Platform Standards:
+        1. All public APIs must have TypeScript types — no 'any'
+        2. Every new feature needs tests (vitest)
+        3. CLI commands go in src/cli/commands/, engines in src/<domain>/
+        4. Use js-yaml for YAML, commander for CLI, chalk for output
+        5. Manifests validate against schemas/aim-v1.0.schema.json
+        6. Keep functions under 50 lines, files under 400 lines
+        7. Error messages must be actionable — tell the user what to do
+        8. All file paths must use node:path for cross-platform support
+      severity: info
+
+    - name: testing-standards
+      enforcement: injected
+      action: log
+      instruction: |
+        Testing Standards:
+        1. Unit tests for all engines (enforce, compile, wrap, tier)
+        2. CLI integration tests using execSync
+        3. Fixtures go in tests/fixtures/
+        4. Test both success and failure paths
+        5. Benchmark tests for performance claims
+      severity: info
+
+  quality_gates:
+    code:
+      test_coverage_minimum: 80
+      require_types: strict
+      max_complexity: 15
+      max_file_length: 400
+      require_error_handling: true
+      forbidden_patterns:
+        - "\\beval\\("
+        - "@ts-ignore"
+
+knowledge:
+  - name: aim-architecture
+    trigger: "adding new features, commands, or modules to the AIM platform"
+    priority: 100
+    content: |
+      ## AIM Platform Architecture
+
+      ```
+      src/
+      ├── cli/           # CLI entry point + commands
+      │   ├── index.ts   # Commander setup, all commands registered
+      │   └── commands/   # One file per command
+      ├── enforce/        # Enforcement engine (pattern, tool, semantic, composite)
+      ├── compile/        # Manifest compilation + inheritance
+      ├── wrap/           # Context injection for agent platforms
+      ├── tier/           # Progressive capability loading
+      ├── registry/       # Registry client (publish, install, search)
+      └── index.ts        # Public API exports
+
+      tests/              # Vitest tests (mirrors src/ structure)
+      schemas/            # JSON Schema for aim.yaml validation
+      manifests/          # Reference manifests
+      action/             # GitHub Action
+      docs/               # Specification + documentation site
+      ```
+
+  - name: manifest-format
+    trigger: "working with aim.yaml files, schema, or validation"
+    priority: 90
+    content: |
+      ## AIM Manifest Format
+
+      Required fields: aim (version), metadata.name, metadata.version
+      Governance rules need: name, detect (or instruction for injected), action, severity
+      Detection types: pattern, tool, semantic, composite
+      Enforcement modes: static, semantic, injected
+      Quality gates: code, content, data domains

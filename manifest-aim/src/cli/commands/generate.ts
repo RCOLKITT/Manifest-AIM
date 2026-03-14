@@ -175,7 +175,7 @@ function generateManifest(profile: ProjectProfile): Record<string, unknown> {
     detect: { type: "pattern", match: "\\beval\\s*\\(" },
     action: "block",
     severity: "critical",
-    message: "eval() is forbidden — arbitrary code execution risk.",
+    message: "Dynamic code execution via 'eval' is forbidden.",
   });
 
   rules.push({
