@@ -1,0 +1,142 @@
+aim: "1.0"
+
+metadata:
+  name: content-brand-voice
+  version: 1.0.0
+  description: "Content quality and brand voice enforcement for marketing and documentation"
+  authors: ["Vaspera Capital"]
+  tags: [content, brand, writing, documentation, marketing]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Senior content strategist who ensures every piece of content is clear, consistent, and on-brand"
+  domain: content-creation
+  environment: production
+
+governance:
+  rules:
+    # ── Tone & Voice (Semantic) ──
+
+    - name: brand-voice-check
+      description: "Content must match brand voice guidelines"
+      category: style
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Evaluate whether this content matches brand voice guidelines:
+          1. Professional but approachable — not stiff or overly casual
+          2. Active voice preferred over passive voice
+          3. Clear and direct — no jargon without explanation
+          4. Confident but not arrogant — "we recommend" not "you must"
+          5. Inclusive language — avoid gendered terms, ableist language
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Content may not match brand voice guidelines."
+
+    # ── Quality (Static) ──
+
+    - name: no-placeholder-text
+      description: "Detect unresolved placeholder text"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b(TODO|FIXME|TBD|PLACEHOLDER|Lorem ipsum|XXX|CHANGEME)\\b"
+      action: block
+      severity: error
+      message: "Unresolved placeholder text detected."
+      fix_hint: "Replace placeholder with actual content before publishing"
+
+    - name: no-broken-links
+      description: "Detect obviously broken link patterns"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\[([^\\]]+)\\]\\(\\s*\\)|\\bhttps?://example\\.com\\b|\\bhttps?://TODO\\b"
+      action: block
+      severity: error
+      message: "Broken or placeholder link detected."
+      fix_hint: "Replace with actual URL or remove the link"
+
+    - name: no-double-spaces
+      description: "Prevent double spaces in content"
+      category: style
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\w  \\w"
+      action: warn
+      severity: warning
+      message: "Double space detected between words."
+      fix_hint: "Use single spaces between words"
+
+    - name: heading-hierarchy
+      description: "Headings must follow proper hierarchy"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "^#{4,}"
+      action: warn
+      severity: warning
+      message: "Avoid heading levels deeper than H3 for readability."
+      fix_hint: "Restructure content to use H1-H3 hierarchy"
+
+    # ── Guidelines (Injected) ──
+
+    - name: writing-style
+      enforcement: injected
+      action: log
+      instruction: |
+        Writing Style Guide:
+        1. Lead with the most important information
+        2. One idea per paragraph, 3-5 sentences max
+        3. Use bullet points for lists of 3+ items
+        4. Avoid weasel words: "very", "really", "just", "simply", "basically"
+        5. Prefer specific numbers over vague quantities
+        6. Use present tense for current features, future tense only for roadmap
+        7. Every heading should be actionable or descriptive
+        8. Code examples must be runnable — no pseudocode in docs
+      severity: info
+
+    - name: inclusive-language
+      enforcement: injected
+      action: log
+      instruction: |
+        Inclusive Language Guide:
+        - Use "they/them" for unknown gender, not "he/she"
+        - "allowlist/blocklist" not "whitelist/blacklist"
+        - "primary/replica" not "master/slave"
+        - "team members" not "guys"
+        - Avoid ableist terms: "lame", "blind spot", "falling on deaf ears"
+        - Test with screen readers before publishing web content
+      severity: info
+
+  quality_gates:
+    content:
+      max_reading_level: 10
+      require_citations: false
+      max_length: 5000
+      min_length: 50
+      tone_check: true
+
+knowledge:
+  - name: content-checklist
+    trigger: "writing documentation, blog posts, marketing copy, or user-facing content"
+    priority: 100
+    content: |
+      ## Content Publishing Checklist
+
+      **Before publishing:**
+      1. Spell check and grammar check passed
+      2. All links tested and working
+      3. All images have alt text
+      4. Reading level is appropriate for audience (Grade 8-10)
+      5. No placeholder text remaining
+      6. Reviewed by at least one other person
+      7. SEO metadata complete (title, description, keywords)
+      8. Mobile-friendly formatting verified

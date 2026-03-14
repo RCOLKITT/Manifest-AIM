@@ -1,0 +1,153 @@
+aim: "1.0"
+
+metadata:
+  name: hipaa-compliance
+  version: 1.0.0
+  description: "HIPAA compliance enforcement for healthcare applications handling PHI"
+  authors: ["Vaspera Capital"]
+  tags: [hipaa, healthcare, compliance, phi, security]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Healthcare software engineer who treats patient data protection as non-negotiable"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── PHI Protection (Static) ──
+
+    - name: no-phi-in-logs
+      description: "Prevent logging of Protected Health Information"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(patient_name|ssn|date_of_birth|medical_record|diagnosis|treatment|insurance_id).*\\b(log|print|console|logger)\\b|\\b(log|print|console|logger)\\b.*(patient_name|ssn|date_of_birth|medical_record|diagnosis|treatment|insurance_id)"
+      action: block
+      severity: critical
+      message: "PHI must never appear in logs (HIPAA §164.312(b))."
+      fix_hint: "Use structured logging with PHI fields redacted or tokenized"
+
+    - name: no-phi-in-urls
+      description: "Prevent PHI in URL parameters"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(patient|ssn|mrn|dob|diagnosis)=[^&]+"
+      action: block
+      severity: critical
+      message: "PHI in URLs is logged by web servers, proxies, and browsers."
+      fix_hint: "Send PHI in request body with POST/PUT, never as URL parameters"
+
+    - name: require-encryption-at-rest
+      description: "Database fields containing PHI must be encrypted"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(patient_name|ssn|date_of_birth|medical_record|diagnosis).*type.*=.*(?:String|Text|VARCHAR)"
+      action: warn
+      severity: error
+      message: "PHI fields should use encrypted column types (HIPAA §164.312(a)(2)(iv))."
+      fix_hint: "Use encrypted field types or application-level encryption for PHI columns"
+
+    - name: no-hardcoded-phi
+      description: "Prevent hardcoded PHI in source code"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b\\d{3}-\\d{2}-\\d{4}\\b|\\b[A-Z]{2}\\d{7}\\b"
+      action: block
+      severity: critical
+      message: "Possible SSN or MRN detected in source code."
+      fix_hint: "Use environment variables or a secrets manager for test data"
+
+    # ── Access Control (Semantic) ──
+
+    - name: phi-access-authorization
+      description: "PHI access must include authorization checks"
+      category: compliance
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Evaluate whether this code properly controls access to PHI:
+          1. Every PHI query/read has an authorization check before access
+          2. Role-based access control (RBAC) is enforced
+          3. Access is logged with user identity and timestamp
+          4. "Minimum necessary" principle: only requested PHI fields returned
+          5. No bulk PHI exports without explicit authorization
+        model: standard
+        threshold: 0.85
+      action: require_approval
+      severity: critical
+      message: "PHI access patterns require authorization review."
+
+    # ── Guidelines (Injected) ──
+
+    - name: hipaa-engineering
+      enforcement: injected
+      action: log
+      instruction: |
+        HIPAA Technical Safeguards (§164.312):
+        1. Access Control: Unique user IDs, emergency access procedures, automatic logoff
+        2. Audit Controls: Record and examine all PHI access
+        3. Integrity Controls: Protect PHI from unauthorized alteration/destruction
+        4. Transmission Security: Encrypt PHI in transit (TLS 1.2+)
+        5. Authentication: Verify user identity before PHI access
+        6. Encryption: Encrypt PHI at rest (AES-256)
+
+        Implementation Checklist:
+        - All PHI fields must be AES-256 encrypted at rest
+        - All API endpoints serving PHI must require authentication
+        - All PHI access must be audit-logged (who, what, when, why)
+        - PHI must never be cached in browser local storage
+        - Session timeout must be ≤15 minutes for PHI-accessing sessions
+        - All PHI transmission must use TLS 1.2 or higher
+      severity: info
+
+    - name: breach-notification
+      enforcement: injected
+      action: log
+      instruction: |
+        Breach Notification Requirements (§164.404-410):
+        - If a breach is suspected, notify the privacy officer within 24 hours
+        - Document: date discovered, PHI involved, individuals affected
+        - Breaches affecting 500+ individuals require HHS notification within 60 days
+        - All breaches require individual notification without unreasonable delay
+        - Build breach detection into monitoring (unusual PHI access patterns)
+      severity: info
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      require_input_validation: true
+      require_logging: structured
+      forbidden_patterns:
+        - "patient.*log"
+        - "ssn.*print"
+        - "\\beval\\b"
+
+knowledge:
+  - name: hipaa-checklist
+    trigger: "handling patient data, PHI, medical records, or healthcare workflows"
+    priority: 100
+    content: |
+      ## HIPAA Engineering Quick Reference
+
+      **PHI (Protected Health Information) includes:**
+      - Names, addresses, dates (birth, admission, discharge, death)
+      - Phone/fax numbers, email addresses
+      - SSN, MRN (medical record number)
+      - Health plan beneficiary numbers
+      - Any unique identifying number, characteristic, or code
+
+      **Safe Defaults:**
+      - Encrypt everything: AES-256 at rest, TLS 1.2+ in transit
+      - Log everything: structured audit logs with correlation IDs
+      - Authenticate everything: no anonymous PHI access
+      - Authorize everything: RBAC with minimum necessary principle
+      - Redact everything: mask PHI in logs, errors, and debug output
