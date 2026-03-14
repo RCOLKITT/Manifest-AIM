@@ -17,7 +17,7 @@ The following rules are enforced on your output. Violations will be caught by th
 - **no-hardcoded-secrets** [BLOCKS] Hardcoded secrets detected.
 - **no-any-type** [WARN] Avoid 'any' type — use specific types or 'unknown'.
 - **no-ts-ignore** [WARN] Use @ts-expect-error with explanation instead.
-- **no-console-in-src** [WARN] console.log detected — CLI commands should use chalk, library code should not log.
+- **no-console-in-src** [WARN] console.log detected — library code should not log directly.
 - **no-empty-catch** [WARN] Empty catch block swallows errors.
 - **no-todo-in-production** [WARN] Unresolved TODO/FIXME found.
 - **run-eslint** [WARN] ESLint check failed.

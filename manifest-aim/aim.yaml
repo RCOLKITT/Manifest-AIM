@@ -76,13 +76,14 @@ governance:
       description: "Prevent console.log in library source (CLI commands excluded)"
       category: quality
       enforcement: static
+      exclude_paths: ["cli/commands/**"]
       detect:
         type: pattern
         match: "console\\.log\\("
         file_types: [ts]
       action: warn
       severity: warning
-      message: "console.log detected — CLI commands should use chalk, library code should not log."
+      message: "console.log detected — library code should not log directly."
 
     - name: no-empty-catch
       description: "Prevent swallowing errors silently"

@@ -11,6 +11,10 @@ export interface GovernanceRule {
   instruction?: string;
   when?: string;
   unless?: string;
+  /** Glob patterns — only enforce this rule on matching paths. */
+  paths?: string[];
+  /** Glob patterns — skip this rule for matching paths. */
+  exclude_paths?: string[];
   action: "block" | "warn" | "require_approval" | "escalate" | "transform" | "log" | "retry";
   severity: "info" | "warning" | "error" | "critical";
   message?: string;

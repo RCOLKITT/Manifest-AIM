@@ -25,6 +25,65 @@ import type {
   EnforceContext,
 } from "./types.js";
 
+/**
+ * Convert a simple glob pattern to a RegExp.
+ * Supports: ** (any path), * (any segment), ? (single char).
+ */
+function globToRegex(pattern: string): RegExp {
+  // Normalize to forward slashes
+  const normalized = pattern.replace(/\\/g, "/");
+  let regex = "";
+  let i = 0;
+  while (i < normalized.length) {
+    const c = normalized[i];
+    if (c === "*" && normalized[i + 1] === "*") {
+      // ** matches any number of path segments
+      regex += ".*";
+      i += 2;
+      // Skip trailing slash after **
+      if (normalized[i] === "/") i++;
+    } else if (c === "*") {
+      // * matches anything except /
+      regex += "[^/]*";
+      i++;
+    } else if (c === "?") {
+      regex += "[^/]";
+      i++;
+    } else if (c === ".") {
+      regex += "\\.";
+      i++;
+    } else {
+      regex += c;
+      i++;
+    }
+  }
+  return new RegExp(`^${regex}$`);
+}
+
+/**
+ * Check if a file path matches any of the given glob patterns.
+ */
+function matchesAnyGlob(filePath: string, patterns: string[]): boolean {
+  const normalized = filePath.replace(/\\/g, "/");
+  return patterns.some((p) => globToRegex(p).test(normalized));
+}
+
+/**
+ * Check if a rule should apply to the given file path based on paths/exclude_paths.
+ * Returns true if the rule should run on this file.
+ */
+function ruleAppliesToFile(rule: GovernanceRule, relPath: string): boolean {
+  // If paths is set, file must match at least one pattern
+  if (rule.paths && rule.paths.length > 0) {
+    if (!matchesAnyGlob(relPath, rule.paths)) return false;
+  }
+  // If exclude_paths is set, file must NOT match any pattern
+  if (rule.exclude_paths && rule.exclude_paths.length > 0) {
+    if (matchesAnyGlob(relPath, rule.exclude_paths)) return false;
+  }
+  return true;
+}
+
 export interface EnforceOptions {
   manifestPath: string;
   targetPath: string;
@@ -105,6 +164,9 @@ async function enforceFile(
     // Evaluate when/unless conditions
     if (!evaluateCondition(rule.when, context)) continue;
     if (rule.unless && evaluateCondition(rule.unless, context)) continue;
+
+    // Check paths/exclude_paths filters
+    if (!ruleAppliesToFile(rule, relPath)) continue;
 
     const detect = rule.detect;
     if (!detect) continue;

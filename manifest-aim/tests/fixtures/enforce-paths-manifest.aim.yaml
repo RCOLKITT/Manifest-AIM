@@ -1,0 +1,52 @@
+aim: "1.0"
+
+metadata:
+  name: enforce-paths-test
+  version: 1.0.0
+  description: "Test manifest for path exclusion enforcement"
+
+context:
+  persona: "Test engineer"
+  domain: software-engineering
+
+governance:
+  rules:
+    - name: no-console-log
+      description: "No console.log in library code (CLI excluded)"
+      category: quality
+      enforcement: static
+      exclude_paths: ["cli/**"]
+      detect:
+        type: pattern
+        match: "console\\.log\\("
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "console.log in library code."
+
+    - name: no-console-log-paths-only
+      description: "Only check console.log in lib/"
+      category: quality
+      enforcement: static
+      paths: ["lib/**"]
+      detect:
+        type: pattern
+        match: "console\\.log\\("
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "console.log in lib code."
+
+    - name: no-console-log-both
+      description: "Check lib/ but exclude tests"
+      category: quality
+      enforcement: static
+      paths: ["lib/**"]
+      exclude_paths: ["**/*.test.ts"]
+      detect:
+        type: pattern
+        match: "console\\.log\\("
+        file_types: [ts]
+      action: warn
+      severity: warning
+      message: "console.log in lib (non-test) code."

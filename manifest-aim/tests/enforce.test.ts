@@ -578,3 +578,70 @@ describe("CLI: manifest enforce", () => {
     expect(stdout).toContain("files checked");
   });
 });
+
+// ── Path Exclusion Tests ──
+
+describe("enforce: path exclusions", () => {
+  const PATHS_MANIFEST = join(FIXTURES, "enforce-paths-manifest.aim.yaml");
+  const PATHS_TARGET = join(FIXTURES, "enforce-paths");
+
+  it("exclude_paths should skip files matching glob patterns", async () => {
+    const summary = await enforce({
+      manifestPath: PATHS_MANIFEST,
+      targetPath: PATHS_TARGET,
+    });
+
+    // no-console-log rule excludes cli/** — should only flag lib/utils.ts
+    const consoleViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "no-console-log");
+    expect(consoleViolations.length).toBe(1);
+    expect(consoleViolations[0].file).toContain("lib/utils.ts");
+  });
+
+  it("paths should only check files matching glob patterns", async () => {
+    const summary = await enforce({
+      manifestPath: PATHS_MANIFEST,
+      targetPath: PATHS_TARGET,
+    });
+
+    // no-console-log-paths-only only checks lib/** — should only flag lib/utils.ts
+    const libOnlyViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "no-console-log-paths-only");
+    expect(libOnlyViolations.length).toBe(1);
+    expect(libOnlyViolations[0].file).toContain("lib/utils.ts");
+  });
+
+  it("paths + exclude_paths should combine correctly", async () => {
+    const summary = await enforce({
+      manifestPath: PATHS_MANIFEST,
+      targetPath: PATHS_TARGET,
+    });
+
+    // no-console-log-both: paths=lib/**, exclude_paths=**/*.test.ts
+    // Should flag lib/utils.ts (it's in lib/ and not a .test.ts)
+    const bothViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "no-console-log-both");
+    expect(bothViolations.length).toBe(1);
+    expect(bothViolations[0].file).toContain("lib/utils.ts");
+  });
+
+  it("CLI commands in cli/ should not be flagged when excluded", async () => {
+    const summary = await enforce({
+      manifestPath: PATHS_MANIFEST,
+      targetPath: PATHS_TARGET,
+    });
+
+    // No rule should flag the cli/commands/run.ts file for console.log
+    const cliViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.file.includes("cli/commands"));
+
+    // Only the no-console-log-paths-only won't match (paths=lib/**),
+    // and no-console-log excludes cli/**, and no-console-log-both paths=lib/**
+    // So cli/commands/run.ts should have 0 violations
+    expect(cliViolations.length).toBe(0);
+  });
+});
