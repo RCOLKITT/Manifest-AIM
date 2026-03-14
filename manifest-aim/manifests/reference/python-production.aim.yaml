@@ -1,0 +1,195 @@
+aim: "1.0"
+
+metadata:
+  name: python-production
+  version: 1.0.0
+  description: "Python production code standards with security and type safety enforcement"
+  authors: ["Vaspera Capital"]
+  tags: [python, production, security, typing, fastapi]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Senior Python engineer who writes production-grade, type-safe, well-tested code"
+  domain: software-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Security (Static) ──
+
+    - name: no-eval-exec
+      description: "Prevent eval() and exec() usage"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b(eval|exec)\\s*\\("
+        file_types: [py]
+      action: block
+      severity: critical
+      message: "eval() and exec() are forbidden — arbitrary code execution risk."
+      fix_hint: "Use ast.literal_eval() for safe data parsing, or restructure to avoid dynamic execution"
+
+    - name: no-pickle-untrusted
+      description: "Prevent pickle.loads on untrusted data"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "pickle\\.(loads?|Unpickler)"
+        file_types: [py]
+      action: warn
+      severity: error
+      message: "pickle.load can execute arbitrary code. Verify data source is trusted."
+      fix_hint: "Use json, msgpack, or protobuf for untrusted data deserialization"
+
+    - name: no-hardcoded-secrets
+      description: "Detect hardcoded API keys, passwords, tokens"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(api_key|secret|password|token|private_key)\\s*=\\s*['\"][^'\"]{8,}['\"]"
+        file_types: [py]
+      action: block
+      severity: critical
+      message: "Hardcoded secrets detected."
+      fix_hint: "Use os.environ or a secrets manager (AWS SSM, Vault, etc.)"
+
+    - name: no-shell-injection
+      description: "Prevent shell injection via subprocess"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "subprocess\\.(call|run|Popen)\\([^)]*shell\\s*=\\s*True"
+        file_types: [py]
+      action: block
+      severity: critical
+      message: "shell=True with user input enables shell injection."
+      fix_hint: "Use subprocess.run(['cmd', 'arg'], shell=False) with explicit argument list"
+
+    # ── Type Safety (Static) ──
+
+    - name: no-bare-except
+      description: "Prevent bare except clauses"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "except\\s*:"
+        file_types: [py]
+      action: block
+      severity: error
+      message: "Bare except catches SystemExit and KeyboardInterrupt."
+      fix_hint: "Use 'except Exception:' or catch specific exception types"
+
+    - name: no-mutable-defaults
+      description: "Prevent mutable default arguments"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "def\\s+\\w+\\([^)]*=\\s*(\\[\\]|\\{\\}|set\\(\\))"
+        file_types: [py]
+      action: block
+      severity: error
+      message: "Mutable default arguments are shared across calls."
+      fix_hint: "Use None as default, initialize inside function: if arg is None: arg = []"
+
+    # ── Code Quality (Semantic) ──
+
+    - name: api-error-handling
+      description: "API endpoints must have proper error handling"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Evaluate whether this API endpoint/handler has proper error handling:
+          1. All expected exceptions are caught and return appropriate HTTP status codes
+          2. Unexpected errors return 500 without leaking internal details
+          3. Input validation errors return 400/422 with clear messages
+          4. Authentication failures return 401, authorization failures return 403
+          5. Database and external service errors are caught and handled gracefully
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "API endpoint may have insufficient error handling."
+
+    # ── Style (Injected) ──
+
+    - name: python-patterns
+      enforcement: injected
+      action: log
+      instruction: |
+        Follow these Python patterns:
+        1. Use type hints on all function signatures (PEP 484)
+        2. Use dataclasses or Pydantic models for structured data
+        3. Prefer pathlib over os.path for file operations
+        4. Use f-strings for string formatting
+        5. Use context managers (with) for resource management
+        6. Follow PEP 8 naming: snake_case functions, PascalCase classes
+        7. Use logging module, never print() in production code
+      severity: info
+
+    - name: async-patterns
+      enforcement: injected
+      action: log
+      instruction: |
+        Async Python patterns:
+        1. Use async/await consistently — don't mix sync and async
+        2. Use asyncio.gather for concurrent operations
+        3. Use async context managers for database connections
+        4. Never use time.sleep in async code — use asyncio.sleep
+        5. Use aiohttp or httpx for async HTTP, not requests
+      severity: info
+
+  quality_gates:
+    code:
+      test_coverage_minimum: 85
+      require_types: true
+      max_complexity: 10
+      max_file_length: 300
+      require_error_handling: true
+      require_input_validation: true
+      forbidden_patterns:
+        - "\\bprint\\("
+        - "\\bany\\b"
+
+knowledge:
+  - name: python-security
+    trigger: "handling user input, authentication, database access, or file operations"
+    priority: 100
+    content: |
+      ## Python Security Checklist
+
+      1. **Input Validation** — Use Pydantic models for all user input
+      2. **SQL** — Use SQLAlchemy ORM or parameterized queries, never f-strings
+      3. **File Access** — Validate paths, prevent directory traversal
+      4. **Authentication** — Use bcrypt for passwords, JWT with short expiry
+      5. **Dependencies** — pip audit, pin versions, use safety checker
+      6. **Secrets** — python-dotenv for dev, env vars for prod, never committed
+      7. **Logging** — Never log PII, use structured logging (structlog)
+      8. **CORS** — Configure explicitly in FastAPI/Django
+
+  - name: project-layout
+    trigger: "creating new modules, services, or project structure"
+    priority: 80
+    content: |
+      ## Python Project Layout
+
+      ```
+      src/
+      ├── app/
+      │   ├── api/              # Route handlers (thin)
+      │   ├── core/             # Config, security, dependencies
+      │   ├── domain/           # Business logic, entities
+      │   ├── infrastructure/   # DB, external services
+      │   └── schemas/          # Pydantic models
+      tests/
+      ├── unit/
+      ├── integration/
+      └── conftest.py
+      ```

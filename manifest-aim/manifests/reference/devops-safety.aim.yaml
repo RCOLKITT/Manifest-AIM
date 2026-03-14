@@ -1,0 +1,172 @@
+aim: "1.0"
+
+metadata:
+  name: devops-safety
+  version: 1.0.0
+  description: "Infrastructure modification safeguards for DevOps and platform engineering"
+  authors: ["Vaspera Capital"]
+  tags: [devops, infrastructure, safety, terraform, kubernetes]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Senior platform engineer who prioritizes safety and reversibility in all infrastructure changes"
+  domain: devops
+  environment: production
+
+governance:
+  rules:
+    # ── Destructive Operations (Static) ──
+
+    - name: no-force-delete
+      description: "Prevent force deletion of resources"
+      category: safety
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(--force|force_destroy|prevent_destroy\\s*=\\s*false)"
+        file_types: [tf, hcl, yaml, yml, sh]
+      action: block
+      severity: critical
+      message: "Force deletion bypasses safety checks. Use lifecycle rules instead."
+
+    - name: no-wildcard-permissions
+      description: "Prevent wildcard IAM permissions"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\"Action\":\\s*\"\\*\"|\"Effect\":\\s*\"Allow\"[^}]*\"Resource\":\\s*\"\\*\""
+        file_types: [json, tf, yaml, yml]
+      action: block
+      severity: critical
+      message: "Wildcard permissions violate least privilege principle."
+      fix_hint: "Specify exact actions and resource ARNs needed"
+
+    - name: no-privileged-containers
+      description: "Prevent privileged container configurations"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "privileged:\\s*true|securityContext:[^}]*privileged:\\s*true"
+        file_types: [yaml, yml]
+      action: block
+      severity: critical
+      message: "Privileged containers have full host access — security risk."
+      fix_hint: "Use specific capabilities instead: add [NET_ADMIN] if needed"
+
+    - name: no-latest-tag
+      description: "Prevent use of :latest image tag"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "image:\\s*[^\\s]+:latest"
+        file_types: [yaml, yml]
+      action: block
+      severity: error
+      message: "The :latest tag is non-deterministic and breaks reproducibility."
+      fix_hint: "Pin to a specific version: image: nginx:1.25.3"
+
+    - name: no-hardcoded-secrets-infra
+      description: "Prevent hardcoded secrets in infrastructure code"
+      category: security
+      enforcement: static
+      detect:
+        type: pattern
+        match: "(password|secret_key|api_key|access_key)\\s*=\\s*\"[^\"]{8,}\""
+        file_types: [tf, hcl, yaml, yml]
+      action: block
+      severity: critical
+      message: "Hardcoded secrets in infrastructure code."
+      fix_hint: "Use var.secret_name with sensitive=true, or reference a secrets manager"
+
+    # ── Blast Radius (Semantic) ──
+
+    - name: change-blast-radius
+      description: "Evaluate the blast radius of infrastructure changes"
+      category: safety
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Evaluate the blast radius of this infrastructure change:
+          1. Does it modify production resources directly?
+          2. Could it cause downtime or data loss?
+          3. Is there a rollback strategy?
+          4. Are changes scoped to a single service/resource?
+          5. High-risk: modifying databases, load balancers, DNS, IAM policies
+        model: standard
+        threshold: 0.85
+      action: require_approval
+      severity: warning
+      message: "Infrastructure change may have significant blast radius. Review carefully."
+
+    # ── Safety Practices (Injected) ──
+
+    - name: infrastructure-patterns
+      enforcement: injected
+      action: log
+      instruction: |
+        Follow these infrastructure safety patterns:
+        1. All changes must be reversible — include rollback instructions
+        2. Use blue-green or canary deployments for production changes
+        3. Never modify production databases directly — use migrations
+        4. All Terraform changes require plan before apply
+        5. Tag all resources: environment, team, service, cost-center
+        6. Use separate state files per environment
+        7. Pin all provider and module versions
+        8. Use lifecycle { prevent_destroy = true } for stateful resources
+      severity: info
+
+    - name: incident-response
+      enforcement: injected
+      action: log
+      instruction: |
+        If creating runbooks or incident response procedures:
+        1. Include severity classification (P1-P4)
+        2. Define escalation path with specific contacts
+        3. Document rollback steps for every change
+        4. Include monitoring/alerting verification steps
+        5. Time-box each step (e.g., "if not resolved in 15min, escalate")
+      severity: info
+
+  quality_gates:
+    code:
+      require_error_handling: true
+      require_input_validation: true
+      forbidden_patterns:
+        - ":latest"
+        - "privileged:\\s*true"
+        - "shell=True"
+
+knowledge:
+  - name: terraform-safety
+    trigger: "writing Terraform, modifying infrastructure, or creating resources"
+    priority: 100
+    content: |
+      ## Terraform Safety Checklist
+
+      1. **Plan first** — Always run `terraform plan` and review before apply
+      2. **State locking** — Use remote state with DynamoDB locking
+      3. **Prevent destroy** — Add lifecycle { prevent_destroy = true } to databases, S3 buckets
+      4. **Sensitive values** — Mark variables as sensitive = true
+      5. **Module versions** — Pin module sources with ?ref=v1.2.3
+      6. **Provider versions** — Use ~> constraints: required_providers { aws = "~> 5.0" }
+      7. **Workspaces** — Separate state per environment (dev/staging/prod)
+      8. **Imports** — Use `terraform import` before managing existing resources
+
+  - name: kubernetes-safety
+    trigger: "deploying to Kubernetes, creating pods, services, or configurations"
+    priority: 90
+    content: |
+      ## Kubernetes Safety Checklist
+
+      1. **Resource limits** — Always set CPU/memory requests AND limits
+      2. **Health checks** — Configure liveness AND readiness probes
+      3. **Pod disruption budgets** — Set PDB for all production workloads
+      4. **Network policies** — Default deny, explicitly allow needed traffic
+      5. **RBAC** — Least privilege, no cluster-admin for applications
+      6. **Secrets** — Use external-secrets-operator, not plain Secrets
+      7. **Image scanning** — All images scanned before deployment
+      8. **Rollback** — Use kubectl rollout undo if deployment fails

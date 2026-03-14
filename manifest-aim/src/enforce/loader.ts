@@ -64,7 +64,8 @@ export function getEnforceableRules(manifest: LoadedManifest): GovernanceRule[] 
     if (
       rule.detect.type !== "pattern" &&
       rule.detect.type !== "tool" &&
-      rule.detect.type !== "semantic"
+      rule.detect.type !== "semantic" &&
+      rule.detect.type !== "composite"
     ) {
       return false;
     }

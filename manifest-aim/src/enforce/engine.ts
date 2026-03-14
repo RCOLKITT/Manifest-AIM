@@ -12,11 +12,13 @@ import {
 import { runPatternDetection } from "./pattern.js";
 import { runToolDetection } from "./tool.js";
 import { runSemanticDetection } from "./semantic.js";
+import { runCompositeDetection } from "./composite.js";
 import type {
   GovernanceRule,
   PatternDetect,
   ToolDetect,
   SemanticDetect,
+  CompositeDetect,
   Violation,
   EnforceResult,
   EnforceSummary,
@@ -136,6 +138,20 @@ async function enforceFile(
       );
       if (result.skipped) {
         skippedTools.set(rule.name, result.skipReason ?? "Semantic enforcement unavailable");
+      } else {
+        violations.push(...result.violations);
+      }
+    } else if (detect.type === "composite") {
+      const result = await runCompositeDetection(
+        rule,
+        detect as CompositeDetect,
+        relPath,
+        getContent(),
+        filePath,
+        skippedTools,
+      );
+      if (result.skipped) {
+        skippedTools.set(rule.name, result.skipReason ?? "Composite check unavailable");
       } else {
         violations.push(...result.violations);
       }

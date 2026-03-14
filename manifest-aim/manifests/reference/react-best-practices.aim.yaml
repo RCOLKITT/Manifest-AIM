@@ -1,0 +1,187 @@
+aim: "1.0"
+
+metadata:
+  name: react-best-practices
+  version: 1.0.0
+  description: "React 19 development standards with performance and accessibility enforcement"
+  authors: ["Vaspera Capital"]
+  tags: [react, typescript, frontend, accessibility, performance]
+  license: "SEE LICENSE IN LICENSE"
+
+context:
+  persona: "Senior React developer who builds accessible, performant, production-quality UIs"
+  domain: frontend-engineering
+  environment: production
+
+governance:
+  rules:
+    # ── Performance (Static) ──
+
+    - name: no-inline-objects-in-jsx
+      description: "Prevent inline object/array creation in JSX props"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "<\\w+[^>]+\\{\\s*\\{|<\\w+[^>]+\\{\\s*\\["
+        file_types: [tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Inline objects/arrays in JSX cause unnecessary re-renders."
+      fix_hint: "Extract to a useMemo, constant, or component-level variable"
+
+    - name: no-index-as-key
+      description: "Prevent using array index as React key"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "key=\\{(index|idx|i)\\}"
+        file_types: [tsx, jsx]
+      action: warn
+      severity: warning
+      message: "Array index as key causes reconciliation bugs with dynamic lists."
+      fix_hint: "Use a stable, unique identifier: key={item.id}"
+
+    - name: no-direct-dom-manipulation
+      description: "Prevent direct DOM manipulation bypassing React"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "document\\.(getElementById|querySelector|createElement|appendChild)"
+        file_types: [ts, tsx, js, jsx]
+      action: block
+      severity: error
+      message: "Direct DOM manipulation bypasses React's virtual DOM."
+      fix_hint: "Use useRef() for DOM access, React.createElement for element creation"
+
+    # ── Accessibility (Static) ──
+
+    - name: img-requires-alt
+      description: "All img elements must have alt text"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "<img(?![^>]*alt=)[^>]*>"
+        file_types: [tsx, jsx]
+      action: block
+      severity: error
+      message: "Images must have alt text for screen readers (WCAG 2.1 Level A)."
+      fix_hint: "Add alt='description' or alt='' for decorative images"
+
+    - name: no-positive-tabindex
+      description: "Prevent positive tabindex values"
+      category: compliance
+      enforcement: static
+      detect:
+        type: pattern
+        match: "tabIndex=\\{[1-9]"
+        file_types: [tsx, jsx]
+      action: block
+      severity: error
+      message: "Positive tabindex disrupts natural tab order."
+      fix_hint: "Use tabIndex={0} for focusable or tabIndex={-1} for programmatic focus"
+
+    # ── Hooks (Static) ──
+
+    - name: no-hooks-in-conditions
+      description: "Hooks must not be called conditionally"
+      category: quality
+      enforcement: static
+      detect:
+        type: pattern
+        match: "if\\s*\\([^)]*\\)\\s*\\{[^}]*use[A-Z]"
+        file_types: [ts, tsx, js, jsx]
+      action: block
+      severity: critical
+      message: "Hooks cannot be called conditionally — violates Rules of Hooks."
+      fix_hint: "Move hooks to the top level of the component, use conditional logic inside"
+
+    # ── Architecture (Semantic) ──
+
+    - name: component-single-responsibility
+      description: "Components should have a single responsibility"
+      category: quality
+      enforcement: semantic
+      detect:
+        type: semantic
+        criteria: |
+          Evaluate whether this React component follows single responsibility principle:
+          1. The component does ONE thing well
+          2. It's not mixing data fetching, business logic, and rendering
+          3. If it has more than 150 lines, it likely needs decomposition
+          4. Custom hooks should be extracted for reusable logic
+          5. State management is focused, not bloated
+        model: fast
+        threshold: 0.8
+      action: warn
+      severity: warning
+      message: "Component may have too many responsibilities. Consider decomposing."
+
+    # ── Style (Injected) ──
+
+    - name: component-patterns
+      enforcement: injected
+      action: log
+      instruction: |
+        Follow these React patterns:
+        1. Use functional components exclusively (no class components)
+        2. Prefer named exports over default exports
+        3. Colocate tests with components: Component.tsx + Component.test.tsx
+        4. Use TypeScript interfaces for props, never `any`
+        5. Destructure props in function signature
+        6. Keep components under 150 lines — extract custom hooks for logic
+        7. Use React 19 features: use() hook, Server Components where appropriate
+      severity: info
+
+    - name: state-management
+      enforcement: injected
+      action: log
+      instruction: |
+        State management principles:
+        1. Start with local state (useState) — don't reach for global state prematurely
+        2. Lift state up only when siblings need it
+        3. Use useReducer for complex state transitions
+        4. Context is for dependency injection, not state management
+        5. For server state: use React Query / TanStack Query
+        6. For client global state: Zustand > Redux (simpler, less boilerplate)
+      severity: info
+
+  quality_gates:
+    code:
+      test_coverage_minimum: 80
+      require_types: strict
+      max_file_length: 150
+      max_complexity: 10
+      require_error_handling: true
+      forbidden_patterns:
+        - "className=['\"]"
+        - "\\bany\\b"
+
+knowledge:
+  - name: react-19-patterns
+    trigger: "creating new components, hooks, or React features"
+    priority: 100
+    content: |
+      ## React 19 Patterns
+
+      1. **use() Hook** — Can be called conditionally, replaces useEffect for data loading
+      2. **Server Components** — Default for data-heavy components, mark 'use client' explicitly
+      3. **Actions** — useActionState for form handling, replaces manual state management
+      4. **Optimistic Updates** — useOptimistic for instant UI feedback
+      5. **ref as prop** — No more forwardRef, pass ref directly as a prop
+
+  - name: testing-strategy
+    trigger: "writing tests or test-related code"
+    priority: 80
+    content: |
+      ## React Testing Strategy
+
+      - **Unit tests**: Test hooks and utility functions in isolation
+      - **Component tests**: Use React Testing Library, test behavior not implementation
+      - **Query priority**: getByRole > getByLabelText > getByText > getByTestId
+      - **Avoid**: Testing implementation details (state, props, internal methods)
+      - **Integration**: Test user flows end-to-end with Playwright or Cypress
+      - **Accessibility**: Include axe-core in component tests

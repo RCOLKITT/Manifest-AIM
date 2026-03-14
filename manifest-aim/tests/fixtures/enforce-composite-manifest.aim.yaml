@@ -1,0 +1,77 @@
+aim: "1.0"
+
+metadata:
+  name: composite-test
+  version: 1.0.0
+  description: "Test manifest for composite detection mode"
+
+context:
+  environment: production
+
+governance:
+  rules:
+    # Composite: ALL checks must trigger (AND logic)
+    - name: dangerous-eval-all
+      description: "Multi-check eval detection — all must fire"
+      enforcement: static
+      detect:
+        type: composite
+        strategy: all_must_pass
+        checks:
+          - type: pattern
+            match: "\\beval\\s*\\("
+          - type: pattern
+            match: "\\bFunction\\s*\\("
+      action: block
+      severity: critical
+      message: "Both eval() and Function() detected — extremely dangerous"
+
+    # Composite: ANY check triggers (OR logic)
+    - name: unsafe-code-any
+      description: "Multiple unsafe patterns — any triggers"
+      enforcement: static
+      detect:
+        type: composite
+        strategy: any_must_pass
+        checks:
+          - type: pattern
+            match: "\\beval\\s*\\("
+          - type: pattern
+            match: "console\\.log\\("
+          - type: pattern
+            match: ":\\s*any\\b"
+      action: warn
+      severity: warning
+      message: "Unsafe code pattern detected"
+
+    # Composite: Weighted scoring
+    - name: code-quality-weighted
+      description: "Weighted quality check"
+      enforcement: static
+      detect:
+        type: composite
+        strategy: weighted
+        checks:
+          - type: pattern
+            match: "\\beval\\s*\\("
+            weight: 0.5
+          - type: pattern
+            match: "console\\.log\\("
+            weight: 0.3
+          - type: pattern
+            match: "TODO|FIXME|HACK"
+            weight: 0.2
+        threshold: 0.4
+      action: warn
+      severity: warning
+      message: "Code quality score below threshold"
+
+    # Simple pattern rule (to verify composites don't break regular rules)
+    - name: no-eval-simple
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\beval\\s*\\("
+      action: block
+      severity: critical
+      message: "eval() is forbidden"

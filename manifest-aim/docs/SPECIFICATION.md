@@ -1108,7 +1108,12 @@ Platform vendors implement AIM protocol natively. The spec becomes a standard an
   - Async pipeline: pattern + tool + semantic rules run per-file
   - Skipped rule reporting in CLI output and EnforceSummary
   - 39 enforce tests (36 passed, 3 API-key-gated)
-- [ ] Implement composite detection mode
+- [x] Implement composite detection mode
+  - Three strategies: all_must_pass (AND), any_must_pass (OR), weighted (scored)
+  - Chains pattern + tool + semantic checks with configurable weights
+  - Weighted mode: per-check weights, combined score compared to threshold
+  - Graceful handling of skipped sub-checks (e.g., missing tools)
+  - 7 tests covering all strategies and edge cases
 - [x] Build `manifest wrap` — context injection for agent platforms
   - Four platform targets: claude-code (CLAUDE.md), cursor (.cursorrules), windsurf (.windsurfrules), generic
   - Context extraction: persona, domain, environment, governance rules, knowledge units, quality gates, capabilities
@@ -1119,7 +1124,14 @@ Platform vendors implement AIM protocol natively. The spec becomes a standard an
   - Platform-specific guidance messages in CLI output
   - 32 tests covering context extraction, generation, platform config, integration, and CLI
 - [ ] Implement Tier 0-3 progressive loading protocol in runtime
-- [ ] Implement remaining actions: transform, require_approval, escalate, retry
+- [x] Implement all seven governance actions in CLI output
+  - block (exit 1), warn, log, require_approval, escalate, transform, retry
+  - Action-specific summary counts in CLI output
+  - JSON governance report via `--report` flag for CI/CD integration
+- [x] Create reference manifests for cross-domain demonstration:
+  - `react-best-practices` — React 19, accessibility, performance, component patterns
+  - `python-production` — Python security, type safety, async patterns
+  - `devops-safety` — Infrastructure safeguards, blast radius, Terraform/K8s safety
 - [ ] Create remaining reference manifests:
   - `hipaa-healthcare` — HIPAA-compliant agent operations
   - `soc2-engineering` — SOC2 engineering compliance

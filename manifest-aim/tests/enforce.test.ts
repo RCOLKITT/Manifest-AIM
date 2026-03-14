@@ -410,6 +410,98 @@ describe("enforce: semantic detection", () => {
   });
 });
 
+// ── Composite Detection Tests ──
+
+describe("enforce: composite detection", () => {
+  const COMPOSITE_MANIFEST = join(FIXTURES, "enforce-composite-manifest.aim.yaml");
+
+  it("should include composite rules in enforceable rules", () => {
+    const manifest = loadManifestForEnforcement(COMPOSITE_MANIFEST);
+    const enforceable = getEnforceableRules(manifest);
+    const names = enforceable.map((r) => r.name);
+
+    expect(names).toContain("dangerous-eval-all");
+    expect(names).toContain("unsafe-code-any");
+    expect(names).toContain("code-quality-weighted");
+    expect(names).toContain("no-eval-simple"); // regular pattern rule still included
+  });
+
+  it("all_must_pass should NOT fire when only some checks trigger", async () => {
+    // violations.ts has eval() but NOT Function()
+    const summary = await enforce({
+      manifestPath: COMPOSITE_MANIFEST,
+      targetPath: join(ENFORCE_TARGET, "violations.ts"),
+    });
+
+    const allMustPassViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "dangerous-eval-all");
+    expect(allMustPassViolations.length).toBe(0);
+  });
+
+  it("any_must_pass should fire when any check triggers", async () => {
+    const summary = await enforce({
+      manifestPath: COMPOSITE_MANIFEST,
+      targetPath: join(ENFORCE_TARGET, "violations.ts"),
+    });
+
+    const anyViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "unsafe-code-any");
+    // Should fire for eval, console.log, and :any matches
+    expect(anyViolations.length).toBeGreaterThan(0);
+  });
+
+  it("weighted should calculate score and compare to threshold", async () => {
+    const summary = await enforce({
+      manifestPath: COMPOSITE_MANIFEST,
+      targetPath: join(ENFORCE_TARGET, "violations.ts"),
+    });
+
+    const weightedViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "code-quality-weighted");
+    // eval (0.5) + console.log (0.3) = 0.8 score, threshold 0.4 → should fire
+    expect(weightedViolations.length).toBe(1);
+    expect(weightedViolations[0].match).toContain("composite:weighted");
+    expect(weightedViolations[0].match).toContain("score=");
+  });
+
+  it("weighted should NOT fire when score is below threshold", async () => {
+    // clean.ts should not trigger eval or console.log, so score = 0
+    const summary = await enforce({
+      manifestPath: COMPOSITE_MANIFEST,
+      targetPath: join(ENFORCE_TARGET, "clean.ts"),
+    });
+
+    const weightedViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "code-quality-weighted");
+    expect(weightedViolations.length).toBe(0);
+  });
+
+  it("should not break regular pattern rules alongside composite", async () => {
+    const summary = await enforce({
+      manifestPath: COMPOSITE_MANIFEST,
+      targetPath: join(ENFORCE_TARGET, "violations.ts"),
+    });
+
+    const simpleViolations = summary.results
+      .flatMap((r) => r.violations)
+      .filter((v) => v.rule === "no-eval-simple");
+    expect(simpleViolations.length).toBeGreaterThan(0);
+  });
+
+  it("should pass clean files through all composite checks", async () => {
+    const summary = await enforce({
+      manifestPath: COMPOSITE_MANIFEST,
+      targetPath: join(ENFORCE_TARGET, "clean.ts"),
+    });
+
+    expect(summary.totalViolations).toBe(0);
+  });
+});
+
 // ── CLI Integration Tests ──
 
 describe("CLI: manifest enforce", () => {

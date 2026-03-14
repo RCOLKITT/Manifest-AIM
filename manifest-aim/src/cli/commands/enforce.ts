@@ -74,12 +74,28 @@ function formatSummary(summary: EnforceSummary): void {
   } else {
     const blocked = summary.byAction["block"] ?? 0;
     const warnings = (summary.byAction["warn"] ?? 0) + (summary.byAction["log"] ?? 0);
+    const approvals = summary.byAction["require_approval"] ?? 0;
+    const escalations = summary.byAction["escalate"] ?? 0;
+    const transforms = summary.byAction["transform"] ?? 0;
+    const retries = summary.byAction["retry"] ?? 0;
 
     if (blocked > 0) {
       console.log(chalk.red.bold(`  ✗ ${blocked} blocking violation${blocked !== 1 ? "s" : ""}`));
     }
     if (warnings > 0) {
       console.log(chalk.yellow(`  ⚠ ${warnings} warning${warnings !== 1 ? "s" : ""}`));
+    }
+    if (approvals > 0) {
+      console.log(chalk.magenta(`  ⏸ ${approvals} requiring approval`));
+    }
+    if (escalations > 0) {
+      console.log(chalk.magenta(`  ⬆ ${escalations} escalated`));
+    }
+    if (transforms > 0) {
+      console.log(chalk.cyan(`  ⟲ ${transforms} transform${transforms !== 1 ? "s" : ""} pending`));
+    }
+    if (retries > 0) {
+      console.log(chalk.cyan(`  ↻ ${retries} retry suggestion${retries !== 1 ? "s" : ""}`));
     }
 
     console.log(chalk.dim(`    ${summary.files} files checked, ${summary.filesWithViolations} with issues`));
@@ -135,6 +151,46 @@ export async function enforceCommand(
   } catch (err) {
     console.error(chalk.red(`  ✗ Enforcement failed: ${(err as Error).message}\n`));
     process.exit(1);
+  }
+
+  // If --report, output JSON governance report
+  if (options.report) {
+    const report = {
+      manifest: options.manifest ?? "aim.yaml",
+      target: targetPath,
+      timestamp: new Date().toISOString(),
+      summary: {
+        files: summary.files,
+        filesWithViolations: summary.filesWithViolations,
+        totalViolations: summary.totalViolations,
+        blocked: summary.blocked,
+        byAction: summary.byAction,
+        bySeverity: summary.bySeverity,
+        skippedRules: summary.skippedRules,
+        duration: Math.round(summary.duration),
+      },
+      results: summary.results.map((r) => ({
+        file: r.file,
+        rulesChecked: r.rulesChecked,
+        violations: r.violations.map((v) => ({
+          rule: v.rule,
+          action: v.action,
+          severity: v.severity,
+          message: v.message,
+          line: v.line,
+          column: v.column,
+          match: v.match,
+          fix_hint: v.fix_hint,
+        })),
+      })),
+    };
+
+    console.log(JSON.stringify(report, null, 2));
+
+    if (summary.blocked) {
+      process.exit(1);
+    }
+    return;
   }
 
   // Output violations grouped by file
