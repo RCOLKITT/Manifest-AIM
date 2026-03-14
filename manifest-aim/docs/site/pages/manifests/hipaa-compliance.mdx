@@ -1,8 +1,86 @@
 # HIPAA Compliance
 
-Healthcare-focused manifest ensuring HIPAA compliance for AI-assisted development.
+HIPAA compliance enforcement for healthcare applications handling Protected Health Information (PHI).
 
-```yaml file=../../../manifests/reference/hipaa-compliance.aim.yaml
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Domain** | Software Engineering |
+| **Environment** | Production |
+| **Compliance** | HIPAA §164.312 |
+| **Rules** | 7 |
+| **Enforcement** | Static, Semantic, Injected |
+
+## Key Rules
+
+### PHI Protection (Static)
+- **no-phi-in-logs** — Prevents logging of Protected Health Information
+- **no-phi-in-urls** — Blocks PHI in URL parameters
+- **require-encryption-at-rest** — Ensures PHI fields are encrypted
+- **no-hardcoded-phi** — Detects SSN/MRN patterns in source code
+
+### Access Control (Semantic)
+- **phi-access-authorization** — LLM validates authorization checks before PHI access
+
+### Guidelines (Injected)
+- **hipaa-engineering** — Technical safeguards reference
+- **breach-notification** — Breach response procedures
+
+## Quality Gates
+
+```yaml
+quality_gates:
+  code:
+    require_error_handling: true
+    require_input_validation: true
+    require_logging: structured
+    forbidden_patterns:
+      - "patient.*log"
+      - "ssn.*print"
 ```
 
-[View on GitHub](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/hipaa-compliance.aim.yaml)
+## Knowledge: HIPAA Quick Reference
+
+**PHI includes:**
+- Names, addresses, dates (birth, admission, death)
+- Phone/fax, email addresses
+- SSN, MRN (medical record number)
+- Health plan beneficiary numbers
+
+**Safe Defaults:**
+- Encrypt everything: AES-256 at rest, TLS 1.2+ in transit
+- Log everything: structured audit logs
+- Authenticate everything: no anonymous PHI access
+- Authorize everything: RBAC with minimum necessary
+
+## Sample Rules
+
+```yaml
+- name: no-phi-in-logs
+  category: compliance
+  enforcement: static
+  detect:
+    type: pattern
+    match: "(patient_name|ssn|date_of_birth).*log"
+  action: block
+  severity: critical
+  message: "PHI must never appear in logs (HIPAA §164.312(b))"
+
+- name: phi-access-authorization
+  category: compliance
+  enforcement: semantic
+  detect:
+    type: semantic
+    criteria: "Every PHI query must have authorization check"
+    threshold: 0.85
+  action: require_approval
+```
+
+## Install
+
+```bash
+manifest install hipaa-compliance
+```
+
+[View full manifest on GitHub →](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/hipaa-compliance.aim.yaml)

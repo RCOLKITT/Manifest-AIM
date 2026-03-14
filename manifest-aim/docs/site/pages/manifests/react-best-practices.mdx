@@ -1,8 +1,80 @@
 # React Best Practices
 
-Governance rules for React development following modern patterns and performance best practices.
+React 19 development standards with performance optimization, accessibility enforcement, and modern patterns.
 
-```yaml file=../../../manifests/reference/react-best-practices.aim.yaml
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Domain** | Frontend Engineering |
+| **Environment** | Production |
+| **Rules** | 9 |
+| **Enforcement** | Static, Semantic, Injected |
+
+## Key Rules
+
+### Performance (Static)
+- **no-inline-objects-in-jsx** — Prevents unnecessary re-renders from inline objects
+- **no-index-as-key** — Blocks array index as React key
+- **no-direct-dom-manipulation** — Forbids bypassing React's virtual DOM
+
+### Accessibility (Static)
+- **img-requires-alt** — All images must have alt text (WCAG 2.1)
+- **no-positive-tabindex** — Prevents disrupted tab order
+
+### Hooks (Static)
+- **no-hooks-in-conditions** — Enforces Rules of Hooks
+
+### Architecture (Semantic)
+- **component-single-responsibility** — LLM validates component focus
+
+## Quality Gates
+
+```yaml
+quality_gates:
+  code:
+    test_coverage_minimum: 80
+    max_file_length: 150
+    max_complexity: 10
+    forbidden_patterns:
+      - "className=['\"]"
+      - "\\bany\\b"
 ```
 
-[View on GitHub](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/react-best-practices.aim.yaml)
+## Knowledge Units
+
+| Name | Trigger |
+|------|---------|
+| **React 19 Patterns** | Creating components, hooks |
+| **Testing Strategy** | Writing tests |
+
+## Sample Rules
+
+```yaml
+- name: no-inline-objects-in-jsx
+  category: quality
+  enforcement: static
+  detect:
+    type: pattern
+    match: "<\\w+[^>]+\\{\\s*\\{|<\\w+[^>]+\\{\\s*\\["
+    file_types: [tsx, jsx]
+  action: warn
+  message: "Inline objects cause unnecessary re-renders"
+
+- name: img-requires-alt
+  category: compliance
+  enforcement: static
+  detect:
+    type: pattern
+    match: "<img(?![^>]*alt=)[^>]*>"
+  action: block
+  severity: error
+```
+
+## Install
+
+```bash
+manifest install react-best-practices
+```
+
+[View full manifest on GitHub →](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/react-best-practices.aim.yaml)

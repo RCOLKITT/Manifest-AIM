@@ -1,7 +1,12 @@
 import type { DocsThemeConfig } from "nextra-theme-docs";
 
 const config: DocsThemeConfig = {
-  logo: <strong>Manifest AIM</strong>,
+  logo: (
+    <>
+      <img src="/logo.svg" alt="Manifest AIM" style={{ height: 28, marginRight: 8 }} />
+      <strong>Manifest AIM</strong>
+    </>
+  ),
   project: {
     link: "https://github.com/RCOLKITT/Manifest-AIM",
   },
@@ -18,6 +23,8 @@ const config: DocsThemeConfig = {
         content="Manifest AIM — The Agent Instruction Manifest protocol for governing AI agents"
       />
       <meta name="og:title" content="Manifest AIM" />
+      <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+      <link rel="icon" type="image/png" sizes="32x32" href="/favicon.svg" />
     </>
   ),
   sidebar: {

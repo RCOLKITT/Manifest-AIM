@@ -1,8 +1,77 @@
 # DevOps Safety
 
-Safety-first DevOps manifest for infrastructure, CI/CD, and deployment operations.
+Infrastructure modification safeguards for DevOps, platform engineering, Terraform, and Kubernetes.
 
-```yaml file=../../../manifests/reference/devops-safety.aim.yaml
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Domain** | DevOps |
+| **Environment** | Production |
+| **Rules** | 8 |
+| **Enforcement** | Static, Semantic, Injected |
+
+## Key Rules
+
+### Destructive Operations (Static)
+- **no-force-delete** — Blocks `--force`, `force_destroy`
+- **no-wildcard-permissions** — Forbids `"Action": "*"` IAM policies
+- **no-privileged-containers** — Blocks `privileged: true` in K8s
+- **no-latest-tag** — Requires pinned image versions
+- **no-hardcoded-secrets-infra** — Detects secrets in IaC
+
+### Blast Radius (Semantic)
+- **change-blast-radius** — LLM evaluates impact of changes, requires approval for high-risk
+
+### Safety Practices (Injected)
+- **infrastructure-patterns** — Reversibility, blue-green deployments
+- **incident-response** — Runbook structure, escalation paths
+
+## Quality Gates
+
+```yaml
+quality_gates:
+  code:
+    require_error_handling: true
+    forbidden_patterns:
+      - ":latest"
+      - "privileged:\\s*true"
 ```
 
-[View on GitHub](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/devops-safety.aim.yaml)
+## Knowledge Units
+
+| Name | Trigger |
+|------|---------|
+| **Terraform Safety** | Writing Terraform, infrastructure |
+| **Kubernetes Safety** | K8s deployments, pods, services |
+
+## Sample Rules
+
+```yaml
+- name: no-force-delete
+  category: safety
+  enforcement: static
+  detect:
+    type: pattern
+    match: "(--force|force_destroy|prevent_destroy\\s*=\\s*false)"
+    file_types: [tf, yaml, sh]
+  action: block
+  severity: critical
+
+- name: change-blast-radius
+  category: safety
+  enforcement: semantic
+  detect:
+    type: semantic
+    criteria: "Does this modify production? Could it cause downtime?"
+    threshold: 0.85
+  action: require_approval
+```
+
+## Install
+
+```bash
+manifest install devops-safety
+```
+
+[View full manifest on GitHub →](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/devops-safety.aim.yaml)

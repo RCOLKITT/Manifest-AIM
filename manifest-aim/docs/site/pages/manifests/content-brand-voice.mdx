@@ -1,8 +1,81 @@
 # Content & Brand Voice
 
-Manifest for content creation with brand voice guidelines and quality standards.
+Content quality and brand voice enforcement for marketing, documentation, and user-facing writing.
 
-```yaml file=../../../manifests/reference/content-brand-voice.aim.yaml
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Domain** | Content Creation |
+| **Environment** | Production |
+| **Rules** | 6 |
+| **Enforcement** | Static, Semantic, Injected |
+
+## Key Rules
+
+### Tone & Voice (Semantic)
+- **brand-voice-check** — LLM validates professional, approachable tone
+
+### Quality (Static)
+- **no-placeholder-text** — Blocks TODO, FIXME, Lorem ipsum
+- **no-broken-links** — Detects empty links, example.com URLs
+- **no-double-spaces** — Catches formatting issues
+- **heading-hierarchy** — Warns on H4+ headings
+
+### Guidelines (Injected)
+- **writing-style** — Lead with important info, avoid weasel words
+- **inclusive-language** — allowlist/blocklist, they/them, accessibility
+
+## Quality Gates
+
+```yaml
+quality_gates:
+  content:
+    max_reading_level: 10
+    max_length: 5000
+    min_length: 50
+    tone_check: true
 ```
 
-[View on GitHub](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/content-brand-voice.aim.yaml)
+## Knowledge: Publishing Checklist
+
+**Before publishing:**
+1. Spell check and grammar check passed
+2. All links tested and working
+3. All images have alt text
+4. Reading level appropriate (Grade 8-10)
+5. No placeholder text remaining
+6. Reviewed by another person
+7. SEO metadata complete
+
+## Sample Rules
+
+```yaml
+- name: brand-voice-check
+  category: style
+  enforcement: semantic
+  detect:
+    type: semantic
+    criteria: |
+      Professional but approachable
+      Active voice preferred
+      Clear and direct — no unexplained jargon
+    threshold: 0.8
+  action: warn
+
+- name: no-placeholder-text
+  category: quality
+  enforcement: static
+  detect:
+    type: pattern
+    match: "\\b(TODO|FIXME|Lorem ipsum|XXX)\\b"
+  action: block
+```
+
+## Install
+
+```bash
+manifest install content-brand-voice
+```
+
+[View full manifest on GitHub →](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/content-brand-voice.aim.yaml)

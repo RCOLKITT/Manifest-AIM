@@ -1,8 +1,84 @@
 # Enterprise TypeScript
 
-A comprehensive manifest for enterprise TypeScript development with strict governance rules.
+Enterprise-grade TypeScript development standards with security enforcement, clean architecture validation, and SOC2 compliance support.
 
-```yaml file=../../../manifests/reference/enterprise-typescript.aim.yaml
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Domain** | Software Engineering |
+| **Environment** | Production |
+| **Compliance** | SOC2 |
+| **Rules** | 12 |
+| **Enforcement** | Static, Semantic, Injected |
+
+## Key Rules
+
+### Security (Static)
+- **no-hardcoded-secrets** — Detects API keys, passwords using Semgrep
+- **no-sql-injection** — Blocks string concatenation in SQL queries
+- **no-eval** — Forbids `eval()` and `Function()` execution
+
+### Type Safety (Static)
+- **strict-typescript** — Enforces `tsc --strict` compilation
+- **no-any-type** — Forbids the `any` type entirely
+
+### Code Quality (Static)
+- **no-console-in-production** — Blocks `console.log` in production
+- **no-empty-catch** — Requires meaningful error handling
+
+### Architecture (Semantic)
+- **clean-architecture** — LLM validates domain/infrastructure separation
+- **input-validation-required** — Ensures API handlers validate input
+
+## Quality Gates
+
+```yaml
+quality_gates:
+  code:
+    test_coverage_minimum: 80
+    require_types: strict
+    max_complexity: 10
+    max_file_length: 400
+    forbidden_patterns:
+      - "console\\.log"
+      - "\\bany\\b"
 ```
 
-[View on GitHub](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/enterprise-typescript.aim.yaml)
+## Knowledge Units
+
+| Name | Trigger |
+|------|---------|
+| **Security Checklist** | API endpoints, auth flows, data handlers |
+| **Project Structure** | Creating services, modules, architecture |
+| **Testing Standards** | Writing tests |
+
+## Install
+
+```bash
+manifest install enterprise-typescript
+```
+
+## Sample Rules
+
+```yaml
+- name: no-hardcoded-secrets
+  category: security
+  enforcement: static
+  detect:
+    type: tool
+    command: "semgrep --config=p/secrets --json {{file}}"
+  action: block
+  severity: critical
+
+- name: clean-architecture
+  category: quality
+  enforcement: semantic
+  detect:
+    type: semantic
+    criteria: "Domain logic must not import infrastructure"
+    threshold: 0.85
+  action: warn
+```
+
+[View full manifest on GitHub →](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/enterprise-typescript.aim.yaml)

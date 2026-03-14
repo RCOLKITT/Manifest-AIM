@@ -1,8 +1,77 @@
 # Python Production
 
-Production-ready Python development manifest with security, testing, and deployment governance.
+Production-grade Python development standards with security enforcement, type safety, and FastAPI patterns.
 
-```yaml file=../../../manifests/reference/python-production.aim.yaml
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Domain** | Software Engineering |
+| **Environment** | Production |
+| **Rules** | 9 |
+| **Enforcement** | Static, Semantic, Injected |
+
+## Key Rules
+
+### Security (Static)
+- **no-eval-exec** — Forbids `eval()` and `exec()`
+- **no-pickle-untrusted** — Warns on pickle deserialization
+- **no-hardcoded-secrets** — Detects API keys, passwords in code
+- **no-shell-injection** — Blocks `shell=True` in subprocess
+
+### Code Quality (Static)
+- **no-bare-except** — Prevents catching `SystemExit`, `KeyboardInterrupt`
+- **no-mutable-defaults** — Blocks `def fn(x=[])` anti-pattern
+
+### Architecture (Semantic)
+- **api-error-handling** — LLM validates proper HTTP status codes
+
+## Quality Gates
+
+```yaml
+quality_gates:
+  code:
+    test_coverage_minimum: 85
+    require_types: true
+    max_complexity: 10
+    max_file_length: 300
+    forbidden_patterns:
+      - "\\bprint\\("
 ```
 
-[View on GitHub](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/python-production.aim.yaml)
+## Knowledge Units
+
+| Name | Trigger |
+|------|---------|
+| **Python Security** | User input, auth, database access |
+| **Project Layout** | Creating modules, services |
+
+## Sample Rules
+
+```yaml
+- name: no-eval-exec
+  category: security
+  enforcement: static
+  detect:
+    type: pattern
+    match: "\\b(eval|exec)\\s*\\("
+  action: block
+  severity: critical
+
+- name: no-mutable-defaults
+  category: quality
+  enforcement: static
+  detect:
+    type: pattern
+    match: "def\\s+\\w+\\([^)]*=\\s*(\\[\\]|\\{\\})"
+  action: block
+  message: "Mutable defaults are shared across calls"
+```
+
+## Install
+
+```bash
+manifest install python-production
+```
+
+[View full manifest on GitHub →](https://github.com/RCOLKITT/Manifest-AIM/blob/main/manifest-aim/manifests/reference/python-production.aim.yaml)
