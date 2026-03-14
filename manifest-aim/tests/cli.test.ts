@@ -209,9 +209,10 @@ describe("CLI: stub commands", () => {
     expect(stdout).toContain("coming in");
   });
 
-  it("manifest enforce should show coming soon", () => {
-    const { stdout } = run("enforce ./src");
-    expect(stdout).toContain("coming in");
+  it("manifest enforce should require manifest file", () => {
+    const { exitCode, stdout } = run("enforce ./src");
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain("Manifest not found");
   });
 
   it("manifest wrap should show coming soon", () => {

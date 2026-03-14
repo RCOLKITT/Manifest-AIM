@@ -1,0 +1,77 @@
+aim: "1.0"
+
+metadata:
+  name: enforce-test
+  version: 1.0.0
+  description: "Test manifest for enforcement engine validation"
+
+context:
+  environment: production
+
+governance:
+  rules:
+    - name: no-eval
+      description: "Prevent use of eval()"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "\\b(eval|Function)\\s*\\("
+        file_types: [ts, js]
+      action: block
+      severity: critical
+      message: "eval() and Function() are forbidden."
+
+    - name: no-any-type
+      description: "Forbid usage of the 'any' type"
+      enforcement: static
+      detect:
+        type: pattern
+        match: ":\\s*any\\b|<any>|as\\s+any"
+        file_types: [ts]
+      action: block
+      severity: error
+      message: "The 'any' type is forbidden. Use explicit types."
+      fix_hint: "Use 'unknown' for truly unknown types"
+
+    - name: no-console-in-production
+      description: "No console.log in production"
+      enforcement: static
+      when: "environment == 'production'"
+      detect:
+        type: pattern
+        match: "console\\.(log|debug|info|warn)\\("
+        file_types: [ts, js]
+      action: warn
+      severity: warning
+      message: "console.log is forbidden in production."
+      fix_hint: "Use a structured logger"
+
+    - name: no-empty-catch
+      description: "Catch blocks must handle errors"
+      enforcement: static
+      detect:
+        type: pattern
+        match: "catch\\s*\\([^)]*\\)\\s*\\{\\s*\\}"
+        file_types: [ts, js]
+      action: block
+      severity: error
+      message: "Empty catch blocks silently swallow errors."
+
+    - name: style-suggestion
+      description: "A style rule (injected, should be skipped by enforce)"
+      enforcement: injected
+      action: log
+      severity: info
+      instruction: "Prefer composition over inheritance"
+
+    - name: dev-only-rule
+      description: "Only active in development"
+      enforcement: static
+      when: "environment == 'development'"
+      detect:
+        type: pattern
+        match: "DEVELOPMENT_ONLY"
+        file_types: [ts]
+      action: block
+      severity: error
+      message: "Development-only marker found"

@@ -5,6 +5,7 @@ import { validateCommand } from "./commands/validate.js";
 import { initCommand } from "./commands/init.js";
 import { inspectCommand } from "./commands/inspect.js";
 import { doctorCommand } from "./commands/doctor.js";
+import { enforceCommand } from "./commands/enforce.js";
 
 const program = new Command();
 
@@ -58,9 +59,8 @@ program
   .argument("<path>", "File or directory to check")
   .option("-m, --manifest <file>", "Path to manifest file", "aim.yaml")
   .option("--report", "Output full governance report")
-  .action(() => {
-    console.log("manifest enforce — coming in v0.2.0");
-  });
+  .option("-e, --environment <env>", "Override environment context (e.g., production)")
+  .action(enforceCommand);
 
 program
   .command("wrap")

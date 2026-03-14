@@ -13,3 +13,6 @@ export { validateCommand } from "./cli/commands/validate.js";
 export { initCommand } from "./cli/commands/init.js";
 export { inspectCommand } from "./cli/commands/inspect.js";
 export { doctorCommand } from "./cli/commands/doctor.js";
+export { enforceCommand } from "./cli/commands/enforce.js";
+export { enforce } from "./enforce/engine.js";
+export type { EnforceSummary, Violation } from "./enforce/types.js";
