@@ -7,6 +7,7 @@ import { inspectCommand } from "./commands/inspect.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { enforceCommand } from "./commands/enforce.js";
 import { compileCommand } from "./commands/compile.js";
+import { wrapCommand } from "./commands/wrap.js";
 
 const program = new Command();
 
@@ -63,12 +64,13 @@ program
 
 program
   .command("wrap")
-  .description("Wrap an agent with AIM enforcement")
-  .argument("<agent>", "Agent to wrap (claude-code, cursor, windsurf)")
+  .description("Generate platform-specific context injection from AIM manifest")
+  .argument("<platform>", "Target platform (claude-code, cursor, windsurf, generic)")
   .option("-m, --manifest <file>", "Path to manifest file", "aim.yaml")
-  .action(() => {
-    console.log("manifest wrap — coming in v0.3.0");
-  });
+  .option("-o, --output <dir>", "Output directory for generated file")
+  .option("-e, --environment <env>", "Override environment context")
+  .option("--dry-run", "Print to stdout instead of writing files")
+  .action(wrapCommand);
 
 program
   .command("publish")

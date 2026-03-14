@@ -1109,7 +1109,15 @@ Platform vendors implement AIM protocol natively. The spec becomes a standard an
   - Skipped rule reporting in CLI output and EnforceSummary
   - 39 enforce tests (36 passed, 3 API-key-gated)
 - [ ] Implement composite detection mode
-- [ ] Build `manifest wrap claude-code` — wrapper-mode runtime
+- [x] Build `manifest wrap` — context injection for agent platforms
+  - Four platform targets: claude-code (CLAUDE.md), cursor (.cursorrules), windsurf (.windsurfrules), generic
+  - Context extraction: persona, domain, environment, governance rules, knowledge units, quality gates, capabilities
+  - Governance awareness injection: static rules (with BLOCKS badge), semantic rules (LLM-as-judge), injected rules (full instructions)
+  - Knowledge unit injection with trigger conditions and priority ordering
+  - Quality gate injection with human-readable formatting
+  - Dry-run mode (stdout preview without file writes)
+  - Platform-specific guidance messages in CLI output
+  - 32 tests covering context extraction, generation, platform config, integration, and CLI
 - [ ] Implement Tier 0-3 progressive loading protocol in runtime
 - [ ] Implement remaining actions: transform, require_approval, escalate, retry
 - [ ] Create remaining reference manifests:

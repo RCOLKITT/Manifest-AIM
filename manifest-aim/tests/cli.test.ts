@@ -216,9 +216,10 @@ describe("CLI: stub commands", () => {
     expect(stdout).toContain("Manifest not found");
   });
 
-  it("manifest wrap should show coming soon", () => {
-    const { stdout } = run("wrap claude-code");
-    expect(stdout).toContain("coming in");
+  it("manifest wrap should error on missing manifest", () => {
+    const { exitCode } = run("wrap claude-code");
+    // Default aim.yaml doesn't exist, so it should error
+    expect(exitCode).toBe(1);
   });
 
   it("manifest publish should show coming soon", () => {
